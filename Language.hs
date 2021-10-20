@@ -321,17 +321,17 @@ pThen combine p1 p2 toks
 
 pGreeting :: Parser (String, String)
 pGreeting = pThen keep_first
-            (pThen mk_pair pHelloOrGoodbye pVar)
+            (pThen mkPair pHelloOrGoodbye pVar)
             (pLit "!")
             where
               keep_first = const
-              mk_pair = (,)
+              mkPair = (,)
 -- pGreeting = pThen keep_first
---             (pThen mk_pair pHelloOrGoodbye pVar)
+--             (pThen mkPair pHelloOrGoodbye pVar)
 --             (pLit "!")
 --             where
 --               keep_first = const
---               mk_pair = (,)
+--               mkPair = (,)
 
 pThen3 :: (a -> b -> c -> d)
        -> Parser a
@@ -443,10 +443,10 @@ pProgram :: Parser CoreProgram
 pProgram = pOneOrMoreWithSep pSc (pLit ";")
 
 pSc :: Parser CoreScDefn
-pSc = pThen4 mk_sc pVar (pZeroOrMore pVar) (pLit "=") pExpr
+pSc = pThen4 mkSc pVar (pZeroOrMore pVar) (pLit "=") pExpr
 
-mk_sc :: Name -> [a] -> b -> Expr a -> ScDefn a
-mk_sc fun args _ expr = (fun, args, expr)
+mkSc :: Name -> [a] -> b -> Expr a -> ScDefn a
+mkSc fun args _ expr = (fun, args, expr)
 -- exercise 1.20
 
 pPack :: Parser (Expr a)
