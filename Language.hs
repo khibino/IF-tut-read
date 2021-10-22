@@ -501,7 +501,11 @@ pExpr :: Parser CoreExpr
 pExpr =
   pLet `pAlt`
   pCase `pAlt`
-  pAexpr
+  mkApChain <$$> pOneOrMore pAexpr
+
+mkApChain :: [Expr a] -> Expr a
+mkApChain (f:as) = foldl EAp f as
+mkApChain []     = error "mkApChain: empty expr list"
 
 _example_in :: [String]
 _example_in =
