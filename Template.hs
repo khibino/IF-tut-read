@@ -123,15 +123,20 @@ apStep state a1 _a2 =
     (stack, dump, heap, globals, stats)  ->  (a1:stack, dump, heap, globals, stats)
 
 scStep :: TiState -> Name -> [Name] -> CoreExpr -> TiState
-scStep state _scName argNames body =
-  case state of
-    (stack, _dump, heap, globals, _stats)
+scStep state _scName argNames body = case state of
+  (stack, _dump, heap, globals, _stats)
+    | length stack < length argNames + 1
+      -> error "Too few argments given"
+    | otherwise
       -> (stack', _dump, heap', globals, _stats)
-      where
-        stack' = resultAddr : drop (length argNames + 1) stack
-        (heap', resultAddr) = instantiate body heap env
-        env = argBindings ++ globals
-        argBindings = zip argNames (getargs heap stack)
+  -- exercise 2.6
+  -- (stack, _dump, heap, globals, _stats)
+  --   -> (stack', _dump, heap', globals, _stats)
+    where
+      stack' = resultAddr : drop (length argNames + 1) stack
+      (heap', resultAddr) = instantiate body heap env
+      env = argBindings ++ globals
+      argBindings = zip argNames (getargs heap stack)
 
 getargs :: TiHeap -> TiStack -> [Addr]
 getargs heap stack =
@@ -171,7 +176,28 @@ showResults states =
 
 showState :: TiState -> IseqRep
 showState (stack, _dump, heap, _globals, _stats)
-  = iConcat [ showStack heap stack, iNewline ]
+  | showHeapP =
+    iConcat [ showHeap heap, iNewline ]
+    `iAppend`
+    iConcat [ showStack heap stack, iNewline ]
+  | otherwise =
+    iConcat [ showStack heap stack, iNewline ]
+  where
+    showHeapP = True
+-- exercise 2.5
+
+showHeap :: TiHeap -> IseqRep
+showHeap heap = case heap of
+  (_,_,contents) -> iConcat
+    [ iStr "Heap ["
+    , iIndent (iInterleave iNewline (map showHeapItem contents))
+    , iStr " ]"
+    ]
+  where
+    showHeapItem (addr, node) =
+      iConcat [ showFWAddr addr, iStr ": "
+              , showNode node
+              ]
 
 showStack :: TiHeap -> TiStack -> IseqRep
 showStack heap stack =
@@ -218,9 +244,10 @@ showStats (_stack, _dump, _heap, _globals, stats) =
           , iNum (tiStatGetSteps stats)
           ]
 
+-- exercise 2.4 - arranged
 testProg0, testProg1, testProg2 :: String
 testProg0 = "main = S K K 3"
-testProg1 = "main S K K" -- wrong noto saturated
+testProg1 = "main = S K K" -- wrong not saturated
 testProg2 = "id = S K K;\n\
             \main = twice twice twice id 3"
 
