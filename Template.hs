@@ -33,7 +33,21 @@ run = showResults . eval . compile . parse
 
 type TiState = (TiStack, TiDump, TiHeap, TiGlobals, TiStats)
 
-type TiStack = [Addr]
+data Stack a =
+  Stack
+  { list :: [a]
+  , depth :: Int
+  , maxDepth :: Int
+  }
+
+push :: a -> Stack a -> Stack a
+push x Stack { list = xs, depth = d, maxDepth = maxd } =
+  Stack { list = x:xs, depth = d+1, maxDepth = max (d + 1) maxd }
+
+discard :: Int -> Stack a -> Stack a
+discard n s@(Stack { list = xs, depth = d }) = s { list = drop n xs, depth = max (d - n) 0 }
+
+type TiStack = Stack Addr
 
 data TiDump  = DummyTiDump
   deriving Show
@@ -68,7 +82,8 @@ compile program =
   where
     scDefs = program ++ preludeDefs ++ extraPreludeDefs
     (initialHeap, globals) = buildInitialHeap scDefs
-    initialStack = [addressOfMain]
+    istack = [addressOfMain]
+    initialStack = Stack { list = istack, depth = length istack, maxDepth = length istack }
     addressOfMain = aLookup globals "main" (error "main is not defined")
 
 extraPreludeDefs :: CoreProgram
@@ -83,6 +98,8 @@ allocateSc heap scDefn = case scDefn of
     where
       (heap', addr) = hAlloc heap (NSupercomb name args body)
 
+-- exercise 2.9
+--   eval の結果の先頭の state が必ず一つ取れるのでこの方が良い
 eval :: TiState -> [TiState]
 eval state = state : restStates
   where
@@ -96,9 +113,9 @@ doAdmin state = applyToStats tiStatIncSteps state
 
 tiFinal :: TiState -> Bool
 tiFinal state = case state of
-  ([soleAddr], _, heap, _, _)  ->  isDataNode (hLookup heap soleAddr)
-  ([], _, _, _, _)             ->  error "Empty stack!"
-  _                            ->  False
+  (Stack { list = [soleAddr] }, _, heap, _, _)  ->  isDataNode (hLookup heap soleAddr)
+  (Stack { list = [] }, _, _, _, _)             ->  error "Empty stack!"
+  _                                             ->  False
 
 isDataNode :: Node -> Bool
 isDataNode node = case node of
@@ -108,7 +125,7 @@ isDataNode node = case node of
 step :: TiState -> TiState
 step state =
   case state of
-    (stack, _dump, heap, _globals, _stats) -> dispatch (hLookup heap (head stack))
+    (stack, _dump, heap, _globals, _stats) -> dispatch (hLookup heap (head $ list stack))
   where
     dispatch (NNum n)                   =  numStep state n
     dispatch (NAp a1 a2)                =  apStep  state a1 a2
@@ -120,12 +137,12 @@ numStep _state _n = error "Number applied as a function"
 apStep :: TiState -> Addr -> Addr -> TiState
 apStep state a1 _a2 =
   case state of
-    (stack, dump, heap, globals, stats)  ->  (a1:stack, dump, heap, globals, stats)
+    (stack, dump, heap, globals, stats)  ->  (push a1 stack, dump, heap, globals, stats)
 
 scStep :: TiState -> Name -> [Name] -> CoreExpr -> TiState
 scStep state _scName argNames body = case state of
   (stack, _dump, heap, globals, _stats)
-    | length stack < length argNames + 1
+    | depth stack < length argNames + 1
       -> error "Too few argments given"
     | otherwise
       -> (stack', _dump, heap', globals, _stats)
@@ -133,14 +150,14 @@ scStep state _scName argNames body = case state of
   -- (stack, _dump, heap, globals, _stats)
   --   -> (stack', _dump, heap', globals, _stats)
     where
-      stack' = resultAddr : drop (length argNames + 1) stack
+      stack' = push resultAddr $ discard (length argNames + 1) stack
       (heap', resultAddr) = instantiate body heap env
       env = argBindings ++ globals
       argBindings = zip argNames (getargs heap stack)
 
 getargs :: TiHeap -> TiStack -> [Addr]
 getargs heap stack =
-  case stack of
+  case list stack of
     []         -> error "Empty stack"
     _sc:stack' -> map getarg stack'
       where
@@ -188,10 +205,11 @@ showState (stack, _dump, heap, _globals, _stats)
 
 showHeap :: TiHeap -> IseqRep
 showHeap heap = case heap of
-  (_,_,contents) -> iConcat
+  Heap { allocs = contents, count = c } -> iConcat
     [ iStr "Heap ["
     , iIndent (iInterleave iNewline (map showHeapItem contents))
     , iStr " ]"
+    , iNewline, iIndent (iStr "Allocation count = " `iAppend` iNum c)
     ]
   where
     showHeapItem (addr, node) =
@@ -203,7 +221,7 @@ showStack :: TiHeap -> TiStack -> IseqRep
 showStack heap stack =
     iConcat
     [ iStr "Stack ["
-    , iIndent (iInterleave iNewline (map showStackItem stack))
+    , iIndent (iInterleave iNewline (map showStackItem $ list stack))
     , iStr " ]"
     ]
   where
@@ -212,6 +230,10 @@ showStack heap stack =
       [ showFWAddr addr,  iStr ": "
       , showStkNode heap (hLookup heap addr)
       ]
+
+showStackMaxDepth :: TiStack -> IseqRep
+showStackMaxDepth stack =
+  iConcat [ iStr "Max stack depth = ", iNum (maxDepth stack) ]
 
 showStkNode :: TiHeap -> Node -> IseqRep
 showStkNode heap (NAp funAddr argAddr) =
@@ -239,9 +261,10 @@ showFWAddr addr = iStr (space (4 - length str) ++ str)
     str = show addr
 
 showStats :: TiState -> IseqRep
-showStats (_stack, _dump, _heap, _globals, stats) =
+showStats (stack, _dump, _heap, _globals, stats) =
   iConcat [ iNewline, iNewline, iStr "Total number of steps = "
           , iNum (tiStatGetSteps stats)
+          , iNewline, showStackMaxDepth stack
           ]
 
 -- exercise 2.4 - arranged
@@ -250,6 +273,10 @@ testProg0 = "main = S K K 3"
 testProg1 = "main = S K K" -- wrong not saturated
 testProg2 = "id = S K K;\n\
             \main = twice twice twice id 3"
+testUpdate = "id x = x ;\n\
+             \main = twice twice id 3"
+testUpdate2 = "id x = x ;\n\
+              \main = twice twice twice id 3"
 
 test :: String -> IO ()
 test = putStrLn . showResults . eval . compile . parse
