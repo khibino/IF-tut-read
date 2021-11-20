@@ -379,6 +379,18 @@ pOneOrMoreL p = pThen (:) p (pZeroOrMoreL p)
 pGreetingsN :: Parser Int
 pGreetingsN = pZeroOrMore pGreetings `pApply` length
 
+many :: Parser a -> Parser [a]
+many = pZeroOrMore
+
+some :: Parser a -> Parser [a]
+some = pOneOrMore
+
+manyL :: Parser a -> Parser [a]
+manyL = pZeroOrMoreL
+
+someL :: Parser a -> Parser [a]
+someL = pOneOrMoreL
+
 -- exercise 1.14
 pApply :: Parser a -> (a -> b) -> Parser b
 pApply p f toks = [ (f x, toks') | (x, toks') <- p toks ]
@@ -405,13 +417,16 @@ infixl 4 |$|, |*|, <**, **>
 
 pOneOrMoreWithSep :: Parser a -> Parser b -> Parser [a]
 pOneOrMoreWithSep p sep =
-  (:) |$| p |*| pZeroOrMore (sep **> p)
+  (:) |$| p |*| many (sep **> p)
   {-
   pThen (:) p $ pZeroOrMore (sep `op` p)
   where
     op = pThen (\_ b -> b)
    -}
   -- exercise 1.15
+
+sepBy1 :: Parser a -> Parser b -> Parser [a]
+sepBy1 = pOneOrMoreWithSep
 
 pSat :: (String -> Bool) -> Parser String
 pSat pre toks = case toks of
@@ -440,7 +455,7 @@ syntax = take_first_parse . pProgram
     take_first_parse other                 = error "Syntax error"
 
 pProgram :: Parser CoreProgram
-pProgram = pOneOrMoreWithSep pSc (pLit ";")
+pProgram = pSc `sepBy1` (pLit ";")
 
 pSc :: Parser CoreScDefn
 pSc = pThen4 mkSc pVar (pZeroOrMore pVar) (pLit "=") pExpr
@@ -476,7 +491,7 @@ pLet =
   (pLit "letrec" **> pEmpty True
    `pAlt`
    pLit "let"    **> pEmpty False) |*|
-  pOneOrMoreWithSep pDefn (pLit ";") <**
+   pDefn `sepBy1` pLit ";" <**
   pLit "in" |*|
   pExpr
 
@@ -489,7 +504,7 @@ pAlter =
   pExpr
 
 pAlters :: Parser [CoreAlt]
-pAlters = pOneOrMoreWithSep pAlter (pLit ";")
+pAlters = pAlter `sepBy1` (pLit ";")
 
 pCase :: Parser CoreExpr
 pCase =
@@ -501,7 +516,7 @@ pExpr :: Parser CoreExpr
 pExpr =
   pLet `pAlt`
   pCase `pAlt`
-  mkApChain |$| pOneOrMore pAexpr
+  mkApChain |$| some pAexpr
 
 mkApChain :: [Expr a] -> Expr a
 mkApChain (f:as) = foldl EAp f as
