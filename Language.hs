@@ -476,7 +476,7 @@ pLet =
   (pLit "letrec" **> pEmpty True
    `pAlt`
    pLit "let"    **> pEmpty False) <**>
-  pOneOrMore pDefn <**
+  pOneOrMoreWithSep pDefn (pLit ";") <**
   pLit "in" <**>
   pExpr
 
