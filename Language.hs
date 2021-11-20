@@ -531,6 +531,21 @@ mkApChain :: [Expr a] -> Expr a
 mkApChain (f:as) = foldl EAp f as
 mkApChain []     = error "mkApChain: empty expr list"
 
+type PartialExpr = Maybe (Name, CoreExpr)
+
+pExpr1c :: Parser PartialExpr
+pExpr1c = optional $ (,) |$| pLit "||" |*| pExpr1
+
+pExpr1 :: Parser CoreExpr
+pExpr1 = assembleOp |$| pExpr2 |*| pExpr1c
+
+assembleOp :: CoreExpr -> PartialExpr -> CoreExpr
+assembleOp e  Nothing = e
+assembleOp e1 (Just (op, e2)) = EAp (EAp (EVar op) e1) e2
+
+pExpr2 :: Parser CoreExpr
+pExpr2 = undefined
+
 _example_in :: [String]
 _example_in =
     [ "f = 3 ;"
