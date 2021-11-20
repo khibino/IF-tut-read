@@ -383,8 +383,8 @@ pGreetingsN = pZeroOrMore pGreetings `pApply` length
 pApply :: Parser a -> (a -> b) -> Parser b
 pApply p f toks = [ (f x, toks') | (x, toks') <- p toks ]
 
-(<$$>) :: (a -> b) -> Parser a -> Parser b
-(<$$>) = flip pApply
+(|$|) :: (a -> b) -> Parser a -> Parser b
+(|$|) = flip pApply
 
 pap :: Parser (a -> b) -> Parser a -> Parser b
 pap pf pa toks = [ (f x, toks2)
@@ -392,8 +392,8 @@ pap pf pa toks = [ (f x, toks2)
                  , (x, toks2) <- pa toks1
                  ]
 
-(<**>) :: Parser (a -> b) -> Parser a -> Parser b
-(<**>) = pap
+(|*|) :: Parser (a -> b) -> Parser a -> Parser b
+(|*|) = pap
 
 (<**) :: Parser a -> Parser b -> Parser a
 (<**) = pThen const
@@ -401,11 +401,11 @@ pap pf pa toks = [ (f x, toks2)
 (**>) :: Parser a -> Parser c -> Parser c
 (**>) = pThen (\_ y -> y)
 
-infixl 4 <$$>, <**>, <**, **>
+infixl 4 |$|, |*|, <**, **>
 
 pOneOrMoreWithSep :: Parser a -> Parser b -> Parser [a]
 pOneOrMoreWithSep p sep =
-  (:) <$$> p <**> pZeroOrMore (sep **> p)
+  (:) |$| p |*| pZeroOrMore (sep **> p)
   {-
   pThen (:) p $ pZeroOrMore (sep `op` p)
   where
@@ -429,7 +429,7 @@ pVar = pSat (\tok -> isAlpha (head tok) && (tok `notElem` keywords))
 -- exercise 1.17
 
 pNum :: Parser Int
-pNum = read <$$> pSat (all isDigit)
+pNum = read |$| pSat (all isDigit)
 -- exercise 1.18
 
 syntax :: [Token] -> CoreProgram
@@ -452,15 +452,15 @@ mkSc fun args _ expr = (fun, args, expr)
 pPack :: Parser (Expr a)
 pPack =
   pEmpty EConstr <** pLit "Pack" <**
-  pLit "{" <**>
-  pNum <** pLit "," <**> pNum <**
+  pLit "{" |*|
+  pNum <** pLit "," |*| pNum <**
   pLit "}"
 
 pAexpr :: Parser CoreExpr
 pAexpr =
-  EVar <$$> pVar
+  EVar |$| pVar
   `pAlt`
-  ENum <$$> pNum
+  ENum |$| pNum
   `pAlt`
   pPack
   `pAlt`
@@ -472,20 +472,20 @@ pDefn = pThen3 (\n _ e -> (n, e)) pVar (pLit "=") pExpr
 
 pLet :: Parser CoreExpr
 pLet =
-  ELet <$$>
+  ELet |$|
   (pLit "letrec" **> pEmpty True
    `pAlt`
-   pLit "let"    **> pEmpty False) <**>
+   pLit "let"    **> pEmpty False) |*|
   pOneOrMoreWithSep pDefn (pLit ";") <**
-  pLit "in" <**>
+  pLit "in" |*|
   pExpr
 
 pAlter :: Parser CoreAlt
 pAlter =
   pEmpty (,,) <**
-  pLit "<" <**> pNum <** pLit ">" <**>
+  pLit "<" |*| pNum <** pLit ">" |*|
   pZeroOrMore pVar <**
-  pLit "->" <**>
+  pLit "->" |*|
   pExpr
 
 pAlters :: Parser [CoreAlt]
@@ -493,15 +493,15 @@ pAlters = pOneOrMoreWithSep pAlter (pLit ";")
 
 pCase :: Parser CoreExpr
 pCase =
-  pEmpty ECase <** pLit "case" <**>
-  pExpr <** pLit "of" <**>
+  pEmpty ECase <** pLit "case" |*|
+  pExpr <** pLit "of" |*|
   pAlters
 
 pExpr :: Parser CoreExpr
 pExpr =
   pLet `pAlt`
   pCase `pAlt`
-  mkApChain <$$> pOneOrMore pAexpr
+  mkApChain |$| pOneOrMore pAexpr
 
 mkApChain :: [Expr a] -> Expr a
 mkApChain (f:as) = foldl EAp f as
