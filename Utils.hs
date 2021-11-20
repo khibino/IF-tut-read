@@ -1,31 +1,41 @@
 module Utils where
 
 -- 使用アドレス数、未使用アドレス集合、アドレスと内容の組の集合
-type Heap a = (Int, [Addr], [(Addr, a)])
+data Heap a =
+  Heap
+  { size :: Int
+  , frees :: [Addr]
+  , allocs :: [(Addr, a)]
+  , count :: Int
+  }
+-- type Heap a = (Int, [Addr], [(Addr, a)])
 type Addr = Int
 
+instance Show a => Show (Heap a) where
+  show Heap { size = s, allocs = as, count = c } = show (s, as, c)
+
 hInitial :: Heap a
-hInitial = (0, [1..], [])
+hInitial = Heap 0 [1..] [] 0
 
 hAlloc :: Heap a -> a -> (Heap a, Addr)
-hAlloc (size, (next:free), cts) n = ((size+1, free, (next, n) : cts), next)
-hAlloc (_   , []         ,   _) _ = error "hAlloc: no free node. can't allocate."
+hAlloc Heap { size = s, frees = next:free, allocs = cts, count = c } n = (Heap { size = s+1, frees = free, allocs = (next, n) : cts, count = c + 1}, next)
+hAlloc Heap { frees = []} _ = error "hAlloc: no free node. can't allocate."
 
 hUpdate :: Heap a -> Addr -> a -> Heap a
-hUpdate (size, free, cts) a n = (size, free, (a,n) : remove cts a)
+hUpdate h@(Heap { allocs = cts }) a n = h { allocs = (a,n) : remove cts a }
 
 hFree :: Heap a -> Addr -> Heap a
-hFree (size, free, cts) a = (size-1, a:free, remove cts a)
+hFree h@(Heap { size = s, frees = free, allocs = cts }) a = h { size = s-1, frees = a:free, allocs = remove cts a }
 
 hLookup :: Heap a -> Addr -> a
-hLookup (_size, _free, cts) a =
+hLookup Heap { allocs = cts } a =
   aLookup cts a (error $ "can't find node " ++ showaddr a ++ " in heap")
 
 hAddresses :: Heap a -> [Addr]
-hAddresses (_size, _free, cts) = [addr | (addr, _node) <- cts]
+hAddresses Heap { allocs = cts } = [addr | (addr, _node) <- cts]
 
 hSize :: Heap a -> Int
-hSize (size, _free, _cts) = size
+hSize Heap { size = s } = s
 
 hNull :: Addr
 hNull = 0
