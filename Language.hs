@@ -475,7 +475,7 @@ mkSc fun args _ expr = (fun, args, expr)
 
 pPack :: Parser (Expr a)
 pPack =
-  pEmpty EConstr <** pLit "Pack" <**
+  ppure EConstr <** pLit "Pack" <**
   pLit "{" |*|
   pNum <** pLit "," |*| pNum <**
   pLit "}"
@@ -497,16 +497,16 @@ pDefn = pThen3 (\n _ e -> (n, e)) pVar (pLit "=") pExpr
 pLet :: Parser CoreExpr
 pLet =
   ELet |$|
-  (pLit "letrec" **> pEmpty True
+  (pLit "letrec" **> ppure True
    |||
-   pLit "let"    **> pEmpty False) |*|
+   pLit "let"    **> ppure False) |*|
    pDefn `sepBy1` pLit ";" <**
   pLit "in" |*|
   pExpr
 
 pAlter :: Parser CoreAlt
 pAlter =
-  pEmpty (,,) <**
+  ppure (,,) <**
   pLit "<" |*| pNum <** pLit ">" |*|
   pZeroOrMore pVar <**
   pLit "->" |*|
@@ -517,7 +517,7 @@ pAlters = pAlter `sepBy1` (pLit ";")
 
 pCase :: Parser CoreExpr
 pCase =
-  pEmpty ECase <** pLit "case" |*|
+  ppure ECase <** pLit "case" |*|
   pExpr <** pLit "of" |*|
   pAlters
 
