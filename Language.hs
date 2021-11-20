@@ -309,10 +309,13 @@ pAltL p1 p2 toks =
 
 -- take 1 $ pAlt p1 p2 toks
 
-infixr 3 `pAlt`, `pAltL`
+(|||) :: Parser a -> Parser a -> Parser a
+(|||) = pAlt
+
+infixr 3 `pAlt`, `pAltL`, |||
 
 pHelloOrGoodbye :: Parser String
-pHelloOrGoodbye = pLit "hello" `pAlt` pLit "goodbye"
+pHelloOrGoodbye = pLit "hello" ||| pLit "goodbye"
 
 pThen :: (a -> b -> c) -> Parser a -> Parser b -> Parser c
 pThen combine p1 p2 toks
@@ -356,7 +359,7 @@ pThen4 f pa pb pc pd toks
                                 (v4, toks4) <- pd toks3 ]
 
 pZeroOrMore :: Parser a -> Parser [a]
-pZeroOrMore p = pOneOrMore p `pAlt` pEmpty []
+pZeroOrMore p = pOneOrMore p ||| pEmpty []
 
 pZeroOrMoreL :: Parser a -> Parser [a]
 pZeroOrMoreL p = pOneOrMoreL p `pAltL` pEmpty []
@@ -390,6 +393,12 @@ manyL = pZeroOrMoreL
 
 someL :: Parser a -> Parser [a]
 someL = pOneOrMoreL
+
+ppure :: a -> Parser a
+ppure = pEmpty
+
+optional :: Parser a -> Parser (Maybe a)
+optional p = Just |$| p ||| ppure Nothing
 
 -- exercise 1.14
 pApply :: Parser a -> (a -> b) -> Parser b
@@ -474,11 +483,11 @@ pPack =
 pAexpr :: Parser CoreExpr
 pAexpr =
   EVar |$| pVar
-  `pAlt`
+  |||
   ENum |$| pNum
-  `pAlt`
+  |||
   pPack
-  `pAlt`
+  |||
   pLit "(" **> pExpr <**  pLit ")"
 -- exercise 1.21
 
@@ -489,7 +498,7 @@ pLet :: Parser CoreExpr
 pLet =
   ELet |$|
   (pLit "letrec" **> pEmpty True
-   `pAlt`
+   |||
    pLit "let"    **> pEmpty False) |*|
    pDefn `sepBy1` pLit ";" <**
   pLit "in" |*|
@@ -514,8 +523,8 @@ pCase =
 
 pExpr :: Parser CoreExpr
 pExpr =
-  pLet `pAlt`
-  pCase `pAlt`
+  pLet |||
+  pCase |||
   mkApChain |$| some pAexpr
 
 mkApChain :: [Expr a] -> Expr a
