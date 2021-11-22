@@ -531,7 +531,12 @@ mkApChain :: [Expr a] -> Expr a
 mkApChain (f:as) = foldl EAp f as
 mkApChain []     = error "mkApChain: empty expr list"
 
+
 type PartialExpr = Maybe (Name, CoreExpr)
+
+assembleOp :: CoreExpr -> PartialExpr -> CoreExpr
+assembleOp e  Nothing = e
+assembleOp e1 (Just (op, e2)) = EAp (EAp (EVar op) e1) e2
 
 pExpr1c :: Parser PartialExpr
 pExpr1c = optional $ (,) |$| pLit "||" |*| pExpr1
@@ -539,12 +544,31 @@ pExpr1c = optional $ (,) |$| pLit "||" |*| pExpr1
 pExpr1 :: Parser CoreExpr
 pExpr1 = assembleOp |$| pExpr2 |*| pExpr1c
 
-assembleOp :: CoreExpr -> PartialExpr -> CoreExpr
-assembleOp e  Nothing = e
-assembleOp e1 (Just (op, e2)) = EAp (EAp (EVar op) e1) e2
-
 pExpr2 :: Parser CoreExpr
-pExpr2 = undefined
+pExpr2 = pExpr6
+
+pExpr6 :: Parser CoreExpr
+pExpr6 = mkApChain |$| some pAexpr
+
+-- pExpr1 CPS version
+-- type MaybeK a r = r -> (a -> r) -> r
+type PartialExprK r = r -> (Name -> CoreExpr -> r) -> r
+
+assembleOpK :: CoreExpr -> PartialExprK CoreExpr -> CoreExpr
+assembleOpK e1 k = k e1 $ \op e2 -> EAp (EAp (EVar op) e1) e2
+
+partialExprK :: Parser Name -> Parser CoreExpr -> Parser (PartialExprK r)
+partialExprK np ep =
+  (\n e _ k -> k n e) |$| np |*| ep
+  |||
+  ppure const
+
+pExpr1cK :: Parser (PartialExprK r)
+pExpr1cK = partialExprK (pLit "||") pExpr1
+
+pExpr1K :: Parser CoreExpr
+pExpr1K = assembleOpK |$| pExpr6 |*| pExpr1cK
+
 
 _example_in :: [String]
 _example_in =
