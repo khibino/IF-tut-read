@@ -101,13 +101,17 @@ data Fixity
     = L | N | R
     deriving (Eq, Show)
 
-ops :: [(Name, (Int, Fixity))]
-ops = [ ("*", (5, L)), ("/", (5, L))
-      , ("+", (4, L)), ("-", (4, L))
-      , ("==", (3, N)), ("/=", (3, N))
-      , (">", (3, N)), (">=", (3, N)), ("<", (3, N)), ("<=", (3, N))
-      , ("&&", (2, L))
-      , ("||", (1, L)) ]
+relOps :: [Name]
+relOps = ["==", "/=", ">", ">=", "<", "<="]
+
+binOps :: [(Name, (Int, Fixity))]
+binOps = [ ("*", (5, L)), ("/", (5, L))
+         , ("+", (4, L)), ("-", (4, L)) ]
+         ++
+         [ (op, (3, N)) | op <- relOps]
+         ++
+         [ ("&&", (2, L))
+         , ("||", (1, L)) ]
 
 pprExpr :: (Int, Fixity) -> CoreExpr -> IseqRep
 pprExpr _ (EVar v) = iStr v
@@ -115,7 +119,7 @@ pprExpr _ (ENum n) = iStr $ show n
 pprExpr _ (EConstr tn a)
   = iConcat [iStr "Pack{", iStr (show tn), iStr ",", iStr (show a), iStr "}"]
 pprExpr (cpr, cas) (EAp (EAp (EVar op) e1) e2)
-  | Just (f@(p, a)) <- op `lookup` ops
+  | Just (f@(p, a)) <- op `lookup` binOps
   , let unparened =
           case a of
           L -> iConcat [pprExpr f e1, iStr " ", iStr op, iStr " ", pprExpr (p, N) e2]
@@ -150,6 +154,9 @@ pprExpr _ (ECase e as)
                 ]
 pprExpr _ (ELam ns e)
   = iConcat $ [iInterleave (iStr " ") $ map iStr $ "\\" : ns, iStr " ", pprExpr (0, N) e]
+
+pprExpr1 :: CoreExpr -> IseqRep
+pprExpr1 = pprExpr (0, N)
 
 pprAExpr :: CoreExpr -> IseqRep
 pprAExpr e
@@ -544,8 +551,26 @@ pExpr1c = optional $ (,) |$| pLit "||" |*| pExpr1
 pExpr1 :: Parser CoreExpr
 pExpr1 = assembleOp |$| pExpr2 |*| pExpr1c
 
+pExpr2c :: Parser PartialExpr
+pExpr2c = optional $ (,) |$| pLit "&&" |*| pExpr2
+
 pExpr2 :: Parser CoreExpr
-pExpr2 = pExpr6
+pExpr2 = assembleOp |$| pExpr3 |*| pExpr2c
+
+pRelop :: Parser Name
+pRelop = foldr1 (|||) $ map pLit relOps
+
+pExpr3c :: Parser PartialExpr
+pExpr3c = optional $ (,) |$| pRelop |*| pExpr3
+
+pExpr3 :: Parser CoreExpr
+pExpr3 = assembleOp |$| pExpr4 |*| pExpr3c
+
+pExpr4 :: Parser CoreExpr
+pExpr4 = pExpr6
+
+pExpr5 :: Parser CoreExpr
+pExpr5 = pExpr6
 
 pExpr6 :: Parser CoreExpr
 pExpr6 = mkApChain |$| some pAexpr
