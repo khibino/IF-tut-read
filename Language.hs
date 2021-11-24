@@ -561,7 +561,7 @@ pRelop :: Parser Name
 pRelop = foldr1 (|||) $ map pLit relops
 
 pExpr3c :: Parser PartialExpr
-pExpr3c = optional $ (,) |$| pRelop |*| pExpr3
+pExpr3c = optional $ (,) |$| pRelop |*| pExpr4
 
 pExpr3 :: Parser CoreExpr
 pExpr3 = assembleOp |$| pExpr4 |*| pExpr3c
