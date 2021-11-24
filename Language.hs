@@ -532,7 +532,7 @@ pExpr :: Parser CoreExpr
 pExpr =
   pLet |||
   pCase |||
-  mkApChain |$| some pAexpr
+  pExpr1
 
 mkApChain :: [Expr a] -> Expr a
 mkApChain (f:as) = foldl EAp f as
