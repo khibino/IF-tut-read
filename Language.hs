@@ -532,6 +532,7 @@ pExpr :: Parser CoreExpr
 pExpr =
   pLet |||
   pCase |||
+  -- TODO: ラムダ式の parser の実装を追加する
   pExpr1
 
 mkApChain :: [Expr a] -> Expr a
