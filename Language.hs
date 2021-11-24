@@ -672,8 +672,7 @@ pprExprN (ENum n) = iStr $ show n
 pprExprN (EConstr tn a)
   = iConcat [iStr "Pack{", iStr (show tn), iStr ",", iStr (show a), iStr "}"]
 pprExprN (EAp (EAp (EVar op) e1) e2)
-  | op `elem` ["*", "/", "+", "-"
-              , "==", "/=", ">", ">=", "<", "<="]
+  | op `elem` map fst binops
   = iConcat [pprAExprN e1, iStr " ", iStr op, iStr " ", pprAExprN e2]
 pprExprN (EAp e1 e2)
   = iConcat [pprExprN e1, iStr " ", pprAExprN e2]
