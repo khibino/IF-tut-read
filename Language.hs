@@ -566,11 +566,23 @@ pExpr3c = optional $ (,) |$| pRelop |*| pExpr4
 pExpr3 :: Parser CoreExpr
 pExpr3 = assembleOp |$| pExpr4 |*| pExpr3c
 
+pExpr4c :: Parser PartialExpr
+pExpr4c = optional $
+          (,) |$| pLit "+" |*| pExpr4
+          |||
+          (,) |$| pLit "-" |*| pExpr5
+
 pExpr4 :: Parser CoreExpr
-pExpr4 = pExpr6
+pExpr4 = assembleOp |$| pExpr5 |*| pExpr4c
+
+pExpr5c :: Parser PartialExpr
+pExpr5c = optional $
+          (,) |$| pLit "*" |*| pExpr5
+          |||
+          (,) |$| pLit "/" |*| pExpr6
 
 pExpr5 :: Parser CoreExpr
-pExpr5 = pExpr6
+pExpr5 = assembleOp |$| pExpr6 |*| pExpr5c
 
 pExpr6 :: Parser CoreExpr
 pExpr6 = mkApChain |$| some pAexpr
