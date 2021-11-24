@@ -101,14 +101,14 @@ data Fixity
     = L | N | R
     deriving (Eq, Show)
 
-relOps :: [Name]
-relOps = ["==", "/=", ">", ">=", "<", "<="]
+relops :: [Name]
+relops = ["==", "/=", ">", ">=", "<", "<="]
 
-binOps :: [(Name, (Int, Fixity))]
-binOps = [ ("*", (5, L)), ("/", (5, L))
+binops :: [(Name, (Int, Fixity))]
+binops = [ ("*", (5, L)), ("/", (5, L))
          , ("+", (4, L)), ("-", (4, L)) ]
          ++
-         [ (op, (3, N)) | op <- relOps]
+         [ (op, (3, N)) | op <- relops]
          ++
          [ ("&&", (2, L))
          , ("||", (1, L)) ]
@@ -119,7 +119,7 @@ pprExpr _ (ENum n) = iStr $ show n
 pprExpr _ (EConstr tn a)
   = iConcat [iStr "Pack{", iStr (show tn), iStr ",", iStr (show a), iStr "}"]
 pprExpr (cpr, cas) (EAp (EAp (EVar op) e1) e2)
-  | Just (f@(p, a)) <- op `lookup` binOps
+  | Just (f@(p, a)) <- op `lookup` binops
   , let unparened =
           case a of
           L -> iConcat [pprExpr f e1, iStr " ", iStr op, iStr " ", pprExpr (p, N) e2]
@@ -558,7 +558,7 @@ pExpr2 :: Parser CoreExpr
 pExpr2 = assembleOp |$| pExpr3 |*| pExpr2c
 
 pRelop :: Parser Name
-pRelop = foldr1 (|||) $ map pLit relOps
+pRelop = foldr1 (|||) $ map pLit relops
 
 pExpr3c :: Parser PartialExpr
 pExpr3c = optional $ (,) |$| pRelop |*| pExpr3
