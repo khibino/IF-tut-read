@@ -17,7 +17,7 @@ data Expr a
        (Expr a)              -- ^   Expression to scrutinise
        [Alter a]             -- ^   Alternatives
    | ELam [a] (Expr a)       -- ^ Lambda abstraction
-   deriving Show
+   deriving (Eq, Show)
 
 type CoreExpr = Expr Name
 
@@ -575,6 +575,18 @@ pExpr4c = optional $
 pExpr4 :: Parser CoreExpr
 pExpr4 = assembleOp |$| pExpr5 |*| pExpr4c
 
+testPExpr4 :: IO ()
+testPExpr4
+   | good      = pure ()
+   | otherwise = do
+       mapM_ print $ rs
+       fail "test pExer4 failed"
+  where
+    rs = take 1 $ pExpr1 $ clex 1 "a + b - c"
+    good = [ x | (x, _) <- rs ]
+           ==
+           [ EAp (EAp (EVar "+") (EVar "a")) (EAp (EAp (EVar "-") (EVar "b")) (EVar "c")) ]
+
 pExpr5c :: Parser PartialExpr
 pExpr5c = optional $
           (,) |$| pLit "*" |*| pExpr5
@@ -583,6 +595,18 @@ pExpr5c = optional $
 
 pExpr5 :: Parser CoreExpr
 pExpr5 = assembleOp |$| pExpr6 |*| pExpr5c
+
+testPExpr5 :: IO ()
+testPExpr5
+   | good      = pure ()
+   | otherwise = do
+       mapM_ print $ rs
+       fail "test pExer5 failed"
+  where
+    rs = take 1 $ pExpr1 $ clex 1 "a * b / c"
+    good = [ x | (x, _) <- rs ]
+           ==
+           [ EAp (EAp (EVar "*") (EVar "a")) (EAp (EAp (EVar "/") (EVar "b")) (EVar "c")) ]
 
 pExpr6 :: Parser CoreExpr
 pExpr6 = mkApChain |$| some pAexpr
