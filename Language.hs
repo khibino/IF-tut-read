@@ -65,6 +65,9 @@ prelude =
   , "twice f = compose f f"
   ]
 
+lambdaExample :: String
+lambdaExample = "twice = \\ f x . f (f x)"
+
 preludeDefs :: CoreProgram
 preludeDefs
  = [ ("I", ["x"], EVar "x")
@@ -153,7 +156,7 @@ pprExpr _ (ECase e as)
                 , iStr " -> ", pprExpr (0, N) ae
                 ]
 pprExpr _ (ELam ns e)
-  = iConcat $ [iInterleave (iStr " ") $ map iStr $ "\\" : ns, iStr " ", pprExpr (0, N) e]
+  = iConcat $ [iInterleave (iStr " ") $ map iStr $ "\\" : ns, iStr " . ", pprExpr (0, N) e]
 
 pprExpr1 :: CoreExpr -> IseqRep
 pprExpr1 = pprExpr (0, N)
@@ -528,11 +531,17 @@ pCase =
   pExpr <** pLit "of" |*|
   pAlters
 
+pLam :: Parser CoreExpr
+pLam =
+  ppure ELam <** pLit "\\" |*|
+  (some pVar) <** pLit "." |*|
+  pExpr
+
 pExpr :: Parser CoreExpr
 pExpr =
   pLet |||
   pCase |||
-  -- TODO: ラムダ式の parser の実装を追加する
+  pLam |||
   pExpr1
 
 mkApChain :: [Expr a] -> Expr a
