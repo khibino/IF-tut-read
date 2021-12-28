@@ -71,15 +71,25 @@ type TiHeap  = Heap Node
 type TiGlobals = Assoc Name Addr
 
 -- とりあえずステップカウント
-type TiStats = Int
+-- type TiStats = Int
+data TiStats =
+  TiStats
+  { steps :: Int
+  , scSteps :: Int
+  , primSteps :: Int
+  }
 
 tiStatInitial :: TiStats
-tiStatInitial = 0
+tiStatInitial = TiStats 0 0 0
 
 tiStatIncSteps :: TiStats -> TiStats
-tiStatIncSteps s = s + 1
+tiStatIncSteps s = s { steps = steps s + 1 }
 tiStatGetSteps :: TiStats -> Int
-tiStatGetSteps s = s
+tiStatGetSteps = steps
+
+tiStatIncScStep s = s { scSteps = scSteps s + 1 }
+
+tiStatIncPrimStep s = s { primSteps = primSteps s + 1 }
 
 applyToStats :: (TiStats -> TiStats) -> TiState -> TiState
 applyToStats f (stack, dump, heap, scDefs, stats) =
@@ -141,6 +151,12 @@ eval state = state : restStates
 doAdmin :: TiState -> TiState
 doAdmin state = applyToStats tiStatIncSteps state
 
+doAdminScStep :: TiState -> TiState
+doAdminScStep state = applyToStats tiStatIncScStep state
+
+doAdminPrimStep :: TiState -> TiState
+doAdminPrimStep state = applyToStats tiStatIncPrimStep state
+
 tiFinal :: TiState -> Bool
 tiFinal state = case state of
   (Stack { list = [soleAddr] }, [], heap, _, _) ->  isDataNode (hLookup heap soleAddr)
@@ -159,8 +175,8 @@ step state =
       where
         dispatch (NPrim _n p)               =  primStep state p
         dispatch (NNum n)                   =  numStep state n
-        dispatch (NAp a1 a2)                =  apStep  state a1 a2
-        dispatch (NSupercomb sc args body)  =  scStep  state sc args body
+        dispatch (NAp a1 a2)                =  doAdminScStep $ apStep  state a1 a2
+        dispatch (NSupercomb sc args body)  =  doAdminPrimStep $ scStep  state sc args body
         dispatch (NInd a)                   =  indStep state a
 
 primStep :: TiState -> Primitive -> TiState
@@ -231,7 +247,7 @@ scStep state _scName argNames body = case state of
     | depth stack < length argNames + 1
       -> error "Too few argments given"
     | otherwise
-      -> (stackD, dump, heap', globals, stats)
+      -> (stackD, dump, heap', globals, tiStatIncScStep stats)
   -- exercise 2.6
   -- (stack, _dump, heap, globals, _stats)
   --   -> (stack', _dump, heap', globals, _stats)
@@ -408,10 +424,11 @@ showFWAddr addr = iStr (space (4 - length str) ++ str)
 
 showStats :: TiState -> IseqRep
 showStats (stack, _dump, _heap, _globals, stats) =
-  iConcat [ iNewline, iNewline, iStr "Total number of steps = "
-          , iNum (tiStatGetSteps stats)
-          , iNewline, showStackMaxDepth stack
-          ]
+  iConcat [ iNewline, iNewline
+          , iStr "Total number of steps = ", iNum (tiStatGetSteps stats), iNewline
+          , iStr "Super combinator steps = ", iNum (scSteps stats), iNewline
+          , iStr "Primitive steps = ", iNum (primSteps stats), iNewline
+          , showStackMaxDepth stack ]
 
 -- exercise 2.4 - arranged
 testProg0, testProg1, testProg2 :: String
@@ -444,6 +461,18 @@ testUpdate = "id x = x ;\n\
              \main = twice twice id 3"
 testUpdate2 = "id x = x ;\n\
               \main = twice twice twice id 3"
+
+testDouble =
+  "double x = x + x ;\n\
+  \main = double (double 1)"
+
+testDouble3 =
+  "double x = x + x ;\n\
+  \main = double (S K K 3)"
+
+testDouble2 =
+  "double x = x + x ;\n\
+  \main = double (1 + 1)"
 
 testNeg = "main = negate 3"
 testNeg2 = "main = negate (negate 3)"
