@@ -226,7 +226,10 @@ numStep state _n =
   case state of
     (stack, s:dump, heap, globals, stats)
       | null (list stack1) -> (s, dump, heap, globals, stats)
-      | otherwise          -> error $ "numStep: invalid stack: " ++ show (list stack)
+      | otherwise          -> error $
+                              "numStep: invalid stack: " ++ show (list stack) ++ "\n" ++
+                              unlines (map show $ allocs heap) ++ "\n"
+                              -- unlines (map show $ dump)
       where
         (_a, stack1) = pop stack
     (    _,     [],     _,      _,     _) -> error $ "numStep: invalid state, dump is empty:\n" ++ showResults [state]
@@ -347,9 +350,11 @@ instantiateLet isrec defs body heap env =
 
 showResults :: [TiState] -> String
 showResults states =
-  iDisplay (iConcat [ iLayn (map showState states)
-                    , showStats (last states)
-                    ])
+  unlines (map (iDisplay . showState) states ++
+           [iDisplay (showStats $ last states)])
+  -- iDisplay (iConcat [ iLayn (map showState states)
+  --                   -- , showStats (last states)
+  --                   ])
 
 showState :: TiState -> IseqRep
 showState (stack, _dump, heap, _globals, _stats)
@@ -462,17 +467,21 @@ testUpdate = "id x = x ;\n\
 testUpdate2 = "id x = x ;\n\
               \main = twice twice twice id 3"
 
-testDouble =
+testDouble0 =
+  "double x = x + x ;\n\
+  \main = double 1"
+
+testDouble1 =
+  "double x = x + x ;\n\
+  \main = double (1 + 1)"
+
+testDouble2 =
   "double x = x + x ;\n\
   \main = double (double 1)"
 
 testDouble3 =
   "double x = x + x ;\n\
   \main = double (S K K 3)"
-
-testDouble2 =
-  "double x = x + x ;\n\
-  \main = double (1 + 1)"
 
 testNeg = "main = negate 3"
 testNeg2 = "main = negate (negate 3)"
@@ -489,3 +498,4 @@ testInd = "main = let x = 3 in negate (I x)"
 
 test :: String -> IO ()
 test = putStrLn . showResults . eval . compile . parse
+-- test = putStrLn . iDisplay . showState . head . eval . compile . parse
