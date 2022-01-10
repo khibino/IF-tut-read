@@ -229,7 +229,7 @@ numStep :: TiState -> Int -> TiState
 numStep state _n =
   case state of
     (stack, s:dump, heap, globals, stats)
-      | null (list stack1) -> (s, dump, heap, globals, stats)
+      | null (list stack1) -> (s, dump, heap, globals, stats)  -- (2.7)
       | otherwise          -> error $
                               "numStep: invalid stack: " ++ show (list stack) ++ "\n" ++
                               unlines (map show $ allocs heap) ++ "\n"
