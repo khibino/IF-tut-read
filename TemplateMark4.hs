@@ -243,8 +243,8 @@ apStep :: TiState -> Addr -> Addr -> TiState
 apStep state a1 a2 =
   case state of
     (stack, dump, heap, globals, stats) -> case hLookup heap a2 of
-      NInd a3 ->  (        stack, dump, hUpdate (hFree heap a2) ar (NAp a1 a3), globals, stats)  -- (2.8)
-      _       ->  (push a1 stack, dump,                heap,                    globals, stats)
+      NInd a3 ->  (        stack, dump, hUpdate heap ar (NAp a1 a3), globals, stats)  -- (2.8)
+      _       ->  (push a1 stack, dump,                        heap, globals, stats)
       where
         (ar, _) = pop stack
 -- TODO: 引数が間接参照になるケースを考える
@@ -264,13 +264,14 @@ scStep state _scName argNames body = case state of
       (an, _) = pop stackD
       heap' = instantiateAndUpdate body an heap env
       -- exercise 2.14
+      -- (2.3) は exercise 2.14 で消去
       env = argBindings ++ globals
       argBindings = zip argNames (getArgs heap stack)
 
 indStep :: TiState -> Addr -> TiState
 indStep state addr = case state of
   (stack, dump, heap, globals, stats)
-    -> (push addr stack1, dump, heap, globals, stats)
+    -> (push addr stack1, dump, heap, globals, stats)   -- (2.4)
     where
       (_, stack1) = pop stack
 
@@ -362,16 +363,21 @@ showResults states =
   --                   ])
 
 showState :: TiState -> IseqRep
-showState (stack, _dump, heap, _globals, _stats)
+showState (stack, dump, heap, _globals, _stats)
   | showHeapP =
     iConcat [ showHeap heap, iNewline ]
     `iAppend`
-    iConcat [ showStack heap stack, iNewline ]
+    iseqState
   | otherwise =
-    iConcat [ showStack heap stack, iNewline ]
+    iseqState
   where
     showHeapP = True
 -- exercise 2.5
+    iseqState =
+      iConcat
+      [ showStack heap stack, iNewline
+      , iStr "Dump depth: ", iStr $ show (length dump), iNewline
+      ]
 
 showHeap :: TiHeap -> IseqRep
 showHeap heap = case heap of
