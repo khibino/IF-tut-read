@@ -217,8 +217,8 @@ primArith (stack, dump, heap, globals, stats) (<+>) =
     [b1,b2]
       | null (list stack3) -> case (hLookup heap b1, hLookup heap b2) of
           (NNum x, NNum y) -> (                  stack2,        dump, hUpdate heap ar (NNum $ x <+> y), globals, stats)   -- (2.5 引数が評価済み)
-          (NNum _,      _) -> (          push b2 stack3, stack1:dump,         heap                    , globals, stats)   -- (2.6 第二引数が未評価 - 2.9 適用)
-          (     _,      _) -> (          push b1 stack3, stack1:dump,         heap                    , globals, stats)   -- (2.6 第一引数が未評価 - 2.9 適用)
+          (NNum _,      _) -> (          push b2 stack3, stack2:dump,         heap                    , globals, stats)   -- (2.6 第二引数が未評価 - 2.9 適用)
+          (     _,      _) -> (          push b1 stack3, stack2:dump,         heap                    , globals, stats)   -- (2.6 第一引数が未評価 - 2.9 適用)
       | otherwise  -> error $ "primAirth: invalid stack: " ++ show (list stack)
     as   -> error $ "primAirth: wrong count of arguments" ++ show as
   where
