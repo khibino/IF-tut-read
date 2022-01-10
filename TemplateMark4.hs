@@ -492,6 +492,8 @@ testPlusN = "main = add 3 4"
 
 testPlus = "main = 3 + 4"
 
+testPlus2 = "main = (1 + 2) + (4 + 8)"
+
 testMul = "main = 3 * 4"
 
 testInd = "main = let x = 3 in negate (I x)"
