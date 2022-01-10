@@ -2,6 +2,7 @@
 module TemplateMark4 where
 
 import Language
+-- import Language hiding (preludeDefs)
 import Utils
 
 import Data.List
@@ -108,6 +109,9 @@ compile program =
 
 extraPreludeDefs :: CoreProgram
 extraPreludeDefs = []
+
+-- preludeDefs :: CoreProgram
+-- preludeDefs = []
 
 buildInitialHeap :: [CoreScDefn] -> (TiHeap, TiGlobals)
 -- buildInitialHeap scDefs = mapAccumL allocateSc hInitial scDefs
@@ -401,13 +405,28 @@ showStackMaxDepth stack =
   iConcat [ iStr "Max stack depth = ", iNum (maxDepth stack) ]
 
 showStkNode :: TiHeap -> Node -> IseqRep
-showStkNode heap (NAp funAddr argAddr) =
+showStkNode heap n@(NAp funAddr argAddr) =
   iConcat
   [ iStr "NAp ", showFWAddr funAddr
   , iStr " ", showFWAddr argAddr, iStr " ("
   , showNode (hLookup heap argAddr), iStr ")"
+  , iStr "  -- ", debugNestedAp heap n
   ]
 showStkNode _heap node = showNode node
+
+debugNestedAp :: Heap Node -> Node -> IseqRep
+debugNestedAp heap = rec_ id
+  where
+    paren s = iConcat [iStr "(", s, iStr ")"]
+    rec_ pf (NAp fun arg) =
+      pf $ iConcat [rec_ id (hLookup heap fun), iStr " ", rec_ paren (hLookup heap arg)]
+    rec_ _ x             =
+      leaf x
+    leaf (NAp {})           =  error "bug: showNestedAp: leaf called for NAp"
+    leaf (NPrim n _)        =  iStr n
+    leaf (NSupercomb n _ _) =  iStr n
+    leaf (NNum i)           =  iStr $ show i
+    leaf (NInd a)           =  iStr $ "[" ++ show a ++ "]"
 
 showNode :: Node -> IseqRep
 showNode node = case node of
