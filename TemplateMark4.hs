@@ -179,10 +179,10 @@ step state =
   case state of
     (stack, _dump, heap, _globals, _stats) -> dispatch (hLookup heap (head $ list stack))
       where
-        dispatch (NPrim _n p)               =  primStep state p
+        dispatch (NPrim _n p)               =  doAdminPrimStep $ primStep state p
         dispatch (NNum n)                   =  numStep state n
-        dispatch (NAp a1 a2)                =  doAdminScStep $ apStep  state a1 a2
-        dispatch (NSupercomb sc args body)  =  doAdminPrimStep $ scStep  state sc args body
+        dispatch (NAp a1 a2)                =  apStep  state a1 a2
+        dispatch (NSupercomb sc args body)  =  doAdminScStep $ scStep  state sc args body
         dispatch (NInd a)                   =  indStep state a
 
 primStep :: TiState -> Primitive -> TiState
