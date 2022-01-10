@@ -160,13 +160,14 @@ scStep state _scName argNames body = case state of
       (an, _) = pop stackD
       heap' = instantiateAndUpdate body an heap env
       -- exercise 2.14
+      -- (2.3) は exercise 2.14 で消去
       env = argBindings ++ globals
       argBindings = zip argNames (getargs heap stack)
 
 indStep :: TiState -> Addr -> TiState
 indStep state addr = case state of
   (stack, dump, heap, globals, stats)
-    -> (push addr stack1, dump, heap, globals, stats)
+    -> (push addr stack1, dump, heap, globals, stats)   -- (2.4)
     where
       (_, stack1) = pop stack
 
