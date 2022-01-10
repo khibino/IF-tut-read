@@ -7,7 +7,8 @@ import Utils
 
 import Data.List
 
-import Data.Either (partitionEithers)
+import Control.Monad (when)
+import Data.Either (isLeft)
 
 
 {-  (stack,dump,heap,globals)  -}
@@ -530,10 +531,12 @@ test = putStrLn . showResults . eval . compile . parse
 
 check :: Node -> String -> Either String String
 check expect prog
-  | lastv == expect =  Right . unlines $ showProg "pass: "
-  | otherwise       =  Left  . unlines $ ("expect " ++ show expect) : showProg "wrong: "
+  | length states == limit  =  Left  . unlines $ ("expect " ++ show expect) : showProg "too long: "
+  | lastv == expect         =  Right . unlines $ showProg "pass: "
+  | otherwise               =  Left  . unlines $ ("expect " ++ show expect) : showProg "wrong: "
   where
-    states = eval . compile . parse $ prog
+    states = take limit . eval . compile . parse $ prog
+    limit = 1000000
     (lastStack, _, lHeap, _, _) = last states
     (a, _) = pop lastStack
     lastv = hLookup lHeap a
@@ -545,9 +548,10 @@ check expect prog
 
 checks :: IO ()
 checks = do
-  mapM_ putLn $ pass ++ failed
+  mapM_ (either putLn putLn) results
+  when (any isLeft results) $ fail "some checks failed!"
   where
-    (pass, failed) = partitionEithers $ map (uncurry check) checkList
+    results = map (uncurry check) checkList
     putLn s = putStrLn "" *> putStr s
 
 checkList :: [(Node, String)]
@@ -571,6 +575,6 @@ checkList =
                 \main = double (1 + 1)") -- indirection, supercombinator, plus nested
   , (NNum    4, "double x = x + x ;\n\
                 \main = double (double 1)") -- indirection, supercombinator, plus nested
-  -- , (NNum    6, "double x = x + x ;\n\
-  --               \main = double (S K K 3)") -- indirection, supercombinator, plus nested
+  , (NNum    6, "double x = x + x ;\n\
+                \main = double (S K K 3)") -- indirection, supercombinator, plus nested
   ]
