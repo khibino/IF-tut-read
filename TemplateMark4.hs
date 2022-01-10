@@ -7,6 +7,8 @@ import Utils
 
 import Data.List
 
+import Data.Either (partitionEithers)
+
 
 {-  (stack,dump,heap,globals)  -}
 
@@ -20,7 +22,7 @@ data Node
   | NSupercomb Name [Name] CoreExpr
   | NNum Int
   | NInd Addr
-  deriving Show
+  deriving (Eq, Show)
 
 {-
 
@@ -519,3 +521,50 @@ testInd = "main = let x = 3 in negate (I x)"
 test :: String -> IO ()
 test = putStrLn . showResults . eval . compile . parse
 -- test = putStrLn . iDisplay . showState . head . eval . compile . parse
+
+check :: Node -> String -> Either String String
+check expect prog
+  | lastv == expect =  Right . unlines $ showProg "pass: "
+  | otherwise       =  Left  . unlines $ ("expect " ++ show expect) : showProg "wrong: "
+  where
+    states = eval . compile . parse $ prog
+    (lastStack, _, lHeap, _, _) = last states
+    (a, _) = pop lastStack
+    lastv = hLookup lHeap a
+
+    showProg word =
+      zipWith (++)
+      (word : repeat (replicate (length word) ' '))
+      (lines prog)
+
+checks :: IO ()
+checks = do
+  mapM_ putLn $ pass ++ failed
+  where
+    (pass, failed) = partitionEithers $ map (uncurry check) checkList
+    putLn s = putStrLn "" *> putStr s
+
+checkList :: [(Node, String)]
+checkList =
+  [ (NNum    1, "main = 1")      -- single value
+
+  , (NNum    3, "main = S K K 3") -- supercombinator
+  , (NNum    3, "id = S K K;\n\
+                \main = twice twice twice id 3") -- supercombinator nested
+
+  , (NNum (-3), "main = negate 3") -- negate
+  , (NNum    3, "main = negate (negate 3)") -- negate nested
+  , (NNum    3, "main = 1 + 2")  -- plus
+  , (NNum   15, "main = (1 + 2) + (4 + 8)") -- plus nested
+  , (NNum    6, "main = 2 * 3")  -- mul
+  , (NNum   36, "main = (2 * 3) * (2 * 3)")  -- mul nested
+
+  , (NNum    2, "double x = x + x ;\n\
+                \main = double 1") -- indirection, supercombinator, plus
+  , (NNum    4, "double x = x + x ;\n\
+                \main = double (1 + 1)") -- indirection, supercombinator, plus nested
+  , (NNum    4, "double x = x + x ;\n\
+                \main = double (double 1)") -- indirection, supercombinator, plus nested
+  -- , (NNum    6, "double x = x + x ;\n\
+  --               \main = double (S K K 3)") -- indirection, supercombinator, plus nested
+  ]
