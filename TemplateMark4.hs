@@ -201,30 +201,29 @@ primNeg :: TiState -> TiState
 primNeg _state@(stack, dump, heap, globals, stats) =
   case getArgs heap stack of
     [b]
-      | null (list stack2)  ->  case hLookup heap b of
-          NNum n   -> (stack1,               dump, hUpdate heap ar (NNum (- n)), globals, stats)   -- (2.5 引数が評価済み)
-          _        -> (push b stack2, stack1:dump,         heap                , globals, stats)   -- (2.6 引数が未評価 - 2.9 適用)
+      | null (list s2)  ->  case hLookup heap b of
+          NNum n   -> (       s1,    dump, hUpdate heap ar (NNum (- n)), globals, stats)   -- (2.5 引数が評価済み)
+          _        -> (push b s2, s1:dump,         heap                , globals, stats)   -- (2.6 引数が未評価 - 2.9 適用)
       | otherwise  -> error $ "primNeg: invalid stack: " ++ show (list stack)
     as   -> error $ "primNeg: wrong count of arguments" ++ show as
   where
-    (_, stack1) = pop stack
-    (ar, stack2) = pop stack1
+    s1 = discard 1 stack
+    (ar, s2) = pop s1
 
 -- exercise 2.17
 primArith :: TiState -> (Int -> Int -> Int) -> TiState
 primArith (stack, dump, heap, globals, stats) (<+>) =
   case getArgs heap stack of
     [b1,b2]
-      | null (list stack3) -> case (hLookup heap b1, hLookup heap b2) of
-          (NNum x, NNum y) -> (                  stack2,        dump, hUpdate heap ar (NNum $ x <+> y), globals, stats)   -- (2.5 引数が評価済み)
-          (NNum _,      _) -> (          push b2 stack3, stack2:dump,         heap                    , globals, stats)   -- (2.6 第二引数が未評価 - 2.9 適用)
-          (     _,      _) -> (          push b1 stack3, stack2:dump,         heap                    , globals, stats)   -- (2.6 第一引数が未評価 - 2.9 適用)
+      | null (list s3) -> case (hLookup heap b1, hLookup heap b2) of
+          (NNum x, NNum y) -> (                  s2,    dump, hUpdate heap ar (NNum $ x <+> y), globals, stats)   -- (2.5 引数が評価済み)
+          (NNum _,      _) -> (          push b2 s3, s2:dump,         heap                    , globals, stats)   -- (2.6 第二引数が未評価 - 2.9 適用)
+          (     _,      _) -> (          push b1 s3, s2:dump,         heap                    , globals, stats)   -- (2.6 第一引数が未評価 - 2.9 適用)
       | otherwise  -> error $ "primAirth: invalid stack: " ++ show (list stack)
     as   -> error $ "primAirth: wrong count of arguments" ++ show as
   where
-    (_, stack1)  = pop stack
-    (_, stack2)  = pop stack1
-    (ar, stack3) = pop stack2
+    s2 = discard 2 stack
+    (ar, s3) = pop s2
 
 numStep :: TiState -> Int -> TiState
 -- numStep _state _n = error "Number applied as a function"
