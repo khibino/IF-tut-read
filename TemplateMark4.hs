@@ -531,7 +531,7 @@ test = putStrLn . showResults . eval . compile . parse
 check :: Node -> String -> Either String String
 check expect prog
   | length states == limit  =  Left  . unlines $ ("expect " ++ show expect) : showProg "too long: "
-  | lastv == expect         =  Right . unlines $ showProg "pass: "
+  | lastv == expect         =  Right . unlines $ showProg "pass: " ++ [show lastv]
   | otherwise               =  Left  . unlines $ ("expect " ++ show expect) : showProg "wrong: "
   where
     states = take limit . eval . compile . parse $ prog
