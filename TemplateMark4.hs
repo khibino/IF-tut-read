@@ -197,33 +197,49 @@ primStep state p    = primArith state binOp
     op Div = div
     op p_  = error $ "primStep: not binary op: " ++ show p_
 
+primXXX (stack, dump, heap, globals, stats) =
+  case getArgs heap stack of
+    as
+      | null (list se)  ->  undefined
+      | otherwise       ->  error $ "primXXX: invalid stack" ++ show (list stack)
+    ---   -> error $ "primXXX: wrong count of arguments" ++ show as
+  where
+    arity = undefined
+    sr = discard arity stack
+    (ar, se) = pop sr
+
 primNeg :: TiState -> TiState
 primNeg _state@(stack, dump, heap, globals, stats) =
   case getArgs heap stack of
     [b]
-      | null (list s2)  ->  case hLookup heap b of
-          NNum n   -> (       s1,    dump, hUpdate heap ar (NNum (- n)), globals, stats)   -- (2.5 引数が評価済み)
-          _        -> (push b s2, s1:dump,         heap                , globals, stats)   -- (2.6 引数が未評価 - 2.9 適用)
+      | null (list se)  ->  case hLookup heap b of
+          NNum n           -> (       sr,    dump, hUpdate heap ar (NNum (- n)), globals, stats)   -- (2.5 引数が評価済み)
+          x | isDataNode x -> error $ "primNeg: unknown data node: " ++ show x
+            | otherwise    -> (push b se, sr:dump,         heap                , globals, stats)   -- (2.6 引数が未評価 - 2.9 適用)
       | otherwise  -> error $ "primNeg: invalid stack: " ++ show (list stack)
     as   -> error $ "primNeg: wrong count of arguments" ++ show as
   where
-    s1 = discard 1 stack
-    (ar, s2) = pop s1
+    sr = discard 1 stack
+    (ar, se) = pop sr
 
 -- exercise 2.17
 primArith :: TiState -> (Int -> Int -> Int) -> TiState
 primArith (stack, dump, heap, globals, stats) (<+>) =
   case getArgs heap stack of
     [b1,b2]
-      | null (list s3) -> case (hLookup heap b1, hLookup heap b2) of
-          (NNum x, NNum y) -> (                  s2,    dump, hUpdate heap ar (NNum $ x <+> y), globals, stats)   -- (2.5 引数が評価済み)
-          (NNum _,      _) -> (          push b2 s3, s2:dump,         heap                    , globals, stats)   -- (2.6 第二引数が未評価 - 2.9 適用)
-          (     _,      _) -> (          push b1 s3, s2:dump,         heap                    , globals, stats)   -- (2.6 第一引数が未評価 - 2.9 適用)
+      | null (list se) -> case (hLookup heap b1, hLookup heap b2) of
+          (NNum x, NNum y) -> (                  sr,    dump, hUpdate heap ar (NNum $ x <+> y), globals, stats)   -- (2.5 引数が評価済み)
+          (NNum _,      n)
+            | isDataNode n -> error $ "primArith: unknown 2nd data node: " ++ show n
+            | otherwise    -> (          push b2 se, sr:dump,         heap                    , globals, stats)   -- (2.6 第二引数が未評価 - 2.9 適用)
+          (     n,      _)
+            | isDataNode n -> error $ "primArith: unknown 1st data node: " ++ show n
+            | otherwise    -> (          push b1 se, sr:dump,         heap                    , globals, stats)   -- (2.6 第一引数が未評価 - 2.9 適用)
       | otherwise  -> error $ "primAirth: invalid stack: " ++ show (list stack)
     as   -> error $ "primAirth: wrong count of arguments" ++ show as
   where
-    s2 = discard 2 stack
-    (ar, s3) = pop s2
+    sr = discard 2 stack
+    (ar, se) = pop sr
 
 numStep :: TiState -> Int -> TiState
 -- numStep _state _n = error "Number applied as a function"
