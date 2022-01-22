@@ -18,11 +18,11 @@ data Primitive
   deriving (Eq, Show)
 
 data Node
-  = NPrim Name Primitive
-  | NAp  Addr Addr
+  = NAp  Addr Addr
   | NSupercomb Name [Name] CoreExpr
   | NNum Int
   | NInd Addr
+  | NPrim Name Primitive
   deriving (Eq, Show)
 
 {-
