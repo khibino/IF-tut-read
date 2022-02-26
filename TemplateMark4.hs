@@ -372,10 +372,10 @@ instantiateLet isrec defs body heap env =
 
 showResults :: [TiState] -> String
 showResults states =
-  unlines (map (iDisplay . showState) states ++
+  unlines (map iDisplay (iLaynList $ map showState states) ++
            [iDisplay (showStats $ last states)])
   -- iDisplay (iConcat [ iLayn (map showState states)
-  --                   -- , showStats (last states)
+  --                   , showStats (last states)
   --                   ])
 
 showState :: TiState -> IseqRep
