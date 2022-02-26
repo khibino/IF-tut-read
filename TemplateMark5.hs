@@ -17,6 +17,7 @@ data Primitive
   = Neg | Add | Sub | Mul | Div
   | PrimConstr Int Int -- tag, arity
   | If
+  | CasePair
   | Greater
   | GreaterEq
   | Less
@@ -129,6 +130,10 @@ extraPreludeDefs =
   , ("or",["x","y"],EAp (EAp (EAp (EVar "if") (EVar "x")) (EVar "True")) (EVar "y"))
   , ("xor",["x","y"],EAp (EAp (EAp (EVar "if") (EAp (EAp (EVar "and") (EVar "x")) (EVar "y"))) (EVar "False")) (EAp (EAp (EVar "or") (EVar "x")) (EVar "y")))
   , ("not",["x"],EAp (EAp (EAp (EVar "if") (EVar "x")) (EVar "False")) (EVar "True"))
+
+  , ("MkPair", ["x", "y"], EAp (EAp (EConstr 1 2) (EVar "x")) (EVar "y"))
+  , ("fst", ["p"], EAp (EAp (EVar "casePair") (EVar "p")) (EVar "K"))
+  , ("snd", ["p"], EAp (EAp (EVar "casePair") (EVar "p")) (EVar "K1"))
   ]
 
 _extraPrelude :: String
@@ -161,7 +166,7 @@ primitives = [ ("negate", Neg)
              , ("add", Add),  ("sub", Sub)
              , ("mul", Mul),  ("div", Div)
 
-             , ("if", If)
+             , ("if", If), ("casePair", CasePair)
              , (">", Greater), (">=", GreaterEq)
              , ("<", Less), ("<=", LessEq)
              , ("==", Eq)
@@ -228,6 +233,7 @@ primStep :: TiState -> Primitive -> TiState
 primStep state Neg  = primNeg state
 primStep state (PrimConstr t n) = primConstr state t n
 primStep state If   = primIf state
+primStep state CasePair = primCasePair state
 primStep state p
   | p `elem` [Add, Sub, Mul, Div]                           = primDyadic state arithF
   | p `elem` [Greater, GreaterEq, Less, LessEq, Eq, NotEq]  = primDyadic state compF
@@ -400,6 +406,40 @@ primIf (stack, dump, heap, globals, stats) =
     _  ->   error "primIf: wrong count of argument"
   where
     sr = discard 3 stack
+    (ar, se) = pop sr
+
+-- exercise 2.22
+{-
+    a:a1:a2:[]  d  h  a:NPrim CasePair
+                      a1:NAp a p
+                      a2:NAp a1 f
+                      p:NData 1 [b1, b2]  -- MkPair
+
+⇒       a2:[]  d  h  c:NAp f b1
+                      a2:NAp c b2
+
+--------------
+
+    a:a1:a2:[]  d  h  a:NPrim CasePair
+                      a1:NAp a p  -- 未評価
+                      a2:NAp a1 f
+
+⇒        b:[]  (a2:[]):d  h
+ -}
+primCasePair :: TiState -> TiState
+primCasePair (stack, dump, heap, globals, stats) =
+  case getArgs heap stack of
+    [p, f]
+      | null (list se)  ->  case hLookup heap p of
+          NData 1 [b1, b2]  ->  (       sr,    dump, hUpdate heap1 ar (NAp b4 b2), globals, stats)
+            where (heap1, b4) = hAlloc heap (NAp f b1)
+          n | isDataNode n  ->  error $ "primCasePair: unknown data node: " ++ show n
+            | otherwise     ->  (push p se, sr:dump,         heap                , globals, stats)
+      | otherwise       ->  error $ "primCasePair: invalid stack" ++ show (list stack)
+    as  ->  error $ "primCasePair: wrong count of arguments: " ++ show as
+  where
+    arity = 2
+    sr = discard arity stack
     (ar, se) = pop sr
 
 numStep :: TiState -> Int -> TiState
@@ -730,6 +770,8 @@ testIf2 = "main = if False 0 1"
 -- exercise 2.21
 testFac = "fac n = if (n == 0) 1 (n * fac (n-1)) ;\
           \main = fac 3"
+
+testCasePair = "main = fst (snd (fst (MkPair (MkPair 1 (MkPair 2 3)) 4)))"
 
 test :: String -> IO ()
 test = putStrLn . showResults . eval . compile . parse
