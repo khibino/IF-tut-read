@@ -287,8 +287,8 @@ primArith (stack, dump, heap, globals, stats) (<+>) =
           (     n,      _)
             | isDataNode n -> error $ "primArith: unknown 1st data node: " ++ show n
             | otherwise    -> (          push b1 se, sr:dump,         heap                    , globals, stats)   -- (2.6 第一引数が未評価 - 2.9 適用)
-      | otherwise  -> error $ "primAirth: invalid stack: " ++ show (list stack)
-    as   -> error $ "primAirth: wrong count of arguments" ++ show as
+      | otherwise  -> error $ "primArith: invalid stack: " ++ show (list stack)
+    as   -> error $ "primArith: wrong count of arguments" ++ show as
   where
     sr = discard 2 stack
     (ar, se) = pop sr
