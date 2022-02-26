@@ -248,9 +248,12 @@ iFNum width n
     digits = show n
 
 iLayn :: Iseq a => [a] -> a
-iLayn seqs = iConcat (map lay_item (zip [1..] seqs))
+iLayn = iConcat . iLaynList
+
+iLaynList :: Iseq a => [a] -> [a]
+iLaynList seqs = map layItem (zip [1..] seqs)
   where
-    lay_item (n, seq)
+    layItem (n, seq)
       = iConcat [ iFNum 4 n, iStr ") ", iIndent seq, iNewline ]
 
 -- type Token = String
