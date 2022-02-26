@@ -509,6 +509,12 @@ primCaseList (stack, dump, heap, globals, stats) =
     sr = discard arity stack
     (ar, se) = pop sr
 
+-- exerise 2.25
+{-
+disadvantage は、
+Bool や List といったデータ型ごとにプリミティブを実装する必要があること
+ -}
+
 numStep :: TiState -> Int -> TiState
 -- numStep _state _n = error "Number applied as a function"
 numStep state _n =
