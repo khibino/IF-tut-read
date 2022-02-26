@@ -142,6 +142,9 @@ extraPreludeDefs =
   , ("Cons", ["x", "xs"], EAp (EAp (EConstr 2 2) (EVar "x")) (EVar "xs"))
   , ("head", ["xs"], EAp (EAp (EAp (EVar "caseList") (EVar "xs")) (EVar "abort")) (EVar "K"))
   , ("tail", ["xs"], EAp (EAp (EAp (EVar "caseList") (EVar "xs")) (EVar "abort")) (EVar "K1"))
+
+  , ("length", ["xs"], EAp (EAp (EAp (EVar "caseList") (EVar "xs")) (ENum 0)) (EVar "length'"))
+  , ("length'", ["x", "xs"], EAp (EAp (EVar "+") (ENum 1)) (EAp (EVar "length") (EVar "xs")))
   ]
 
 _extraPrelude :: String
@@ -157,6 +160,9 @@ _extraPrelude =
 
   , "head xs = caseList xs abort K"
   , "tail xs = caseList xs abort K1"
+
+  , "length xs = caseList xs 0 length'"
+  , "length' x xs = 1 + length xs"
   ]
 
 -- preludeDefs :: CoreProgram
@@ -246,7 +252,8 @@ primStep state Neg  = primNeg state
 primStep state (PrimConstr t n) = primConstr state t n
 primStep state If   = primIf state
 primStep state CasePair = primCasePair state
-primStep state Abort = error "aborted."
+primStep state CaseList = primCaseList state
+primStep _state Abort = error "aborted."
 primStep state p
   | p `elem` [Add, Sub, Mul, Div]                           = primDyadic state arithF
   | p `elem` [Greater, GreaterEq, Less, LessEq, Eq, NotEq]  = primDyadic state compF
@@ -452,6 +459,53 @@ primCasePair (stack, dump, heap, globals, stats) =
     as  ->  error $ "primCasePair: wrong count of arguments: " ++ show as
   where
     arity = 2
+    sr = discard arity stack
+    (ar, se) = pop sr
+
+-- exercise 2.24
+{-
+    a:a1:a2:a3:[]  d  h  a:NPrim CaseList
+                         a1:NAp a l
+                         a2:NAp a1 n
+                         a3:NAp a2 c
+                         l:NData 1 []  -- Nil
+
+⇒          a3:[]  d  h  a3:NInd n
+
+--------------
+
+    a:a1:a2:a3:[]  d  h  a:NPrim CaseList
+                         a1:NAp a l
+                         a2:NAp a1 n
+                         a3:NAp a2 c
+                         l:NData 2 [b1,b2]  -- Cons
+
+⇒          a3:[]  d  h  c1:NAp c b1
+                         a3:NAp c1 b2
+
+--------------
+
+    a:a1:a2:a3:[]  d  h  a:NPrim CaseList
+                         a1:NAp a l  -- 未評価
+                         a2:NAp a1 n
+                         a3:NAp a2 c
+
+=>          a1:[]  (a3:[]):d  h
+ -}
+primCaseList :: TiState -> TiState
+primCaseList (stack, dump, heap, globals, stats) =
+  case getArgs heap stack of
+    [l, n, c]
+      | null (list se)  ->  case hLookup heap l of
+          NData 1 []       -> (         sr,   dump, hUpdate heap  ar (NInd n)    , globals, stats)
+          NData 2 [b1, b2] -> (         sr,   dump, hUpdate heap1 ar (NAp c1 b2) , globals, stats)
+            where (heap1, c1) = hAlloc heap (NAp c b1)
+          n' | isDataNode n'  ->  error $ "primCaseList: unknown data node: " ++ show n'
+             | otherwise     ->  (push l se, sr:dump,        heap                 , globals, stats)
+      | otherwise       ->  error $ "primCaseList: invalid stack" ++ show (list stack)
+    as  ->  error $ "primCaseList: wrong count of arguments" ++ show as
+  where
+    arity = 3
     sr = discard arity stack
     (ar, se) = pop sr
 
@@ -786,6 +840,8 @@ testFac = "fac n = if (n == 0) 1 (n * fac (n-1)) ;\
 
 testCasePair = "main = fst (snd (fst (MkPair (MkPair 1 (MkPair 2 3)) 4)))"
 
+testLength = "main = length (Cons 1 (Cons 2 (Cons 3 Nil)))"
+
 test :: String -> IO ()
 test = putStrLn . showResults . eval . compile . parse
 -- test = putStrLn . iDisplay . showState . head . eval . compile . parse
@@ -847,4 +903,6 @@ checkList =
   , (NNum    1, "main = fst (MkPair 1 2)") -- casePair
   , (NNum    2, "main = snd (MkPair 1 2)") -- casePair
   , (NNum    2, "main = fst (snd (fst (MkPair (MkPair 1 (MkPair 2 3)) 4)))") -- casePair nested
+
+  , (NNum    3, "main = length (Cons 1 (Cons 2 (Cons 3 Nil)))") -- caseList
   ]
