@@ -229,15 +229,32 @@ primStep state Neg  = primNeg state
 primStep state (PrimConstr t n) = primConstr state t n
 primStep state If   = primIf state
 primStep state p
+  | p `elem` [Add, Sub, Mul, Div]                           = primDyadic state arithF
+  | p `elem` [Greater, GreaterEq, Less, LessEq, Eq, NotEq]  = primDyadic state compF
+  | otherwise                                               = error $ "primStep: unknown primitive: " ++ show p
+{-
+primStep state p
   | p `elem` [Add, Sub, Mul, Div]                           = primArith state $ arith p
   | p `elem` [Greater, GreaterEq, Less, LessEq, Eq, NotEq]  = primComp  state $ comp p
   | otherwise                                               = error $ "primStep: unknown primitive: " ++ show p
+ -}
   where
+    arithF (NNum x) (NNum y) = NNum $ x `op` y
+      where op = arith p
+    arithF _        _        = error $ "primStep: unknown arith bin op: " ++ show p
+
     arith Add = (+)
     arith Sub = (-)
     arith Mul = (*)
     arith Div = div
     arith p_  = error $ "primStep: not airth bin op: " ++ show p_
+
+    compF (NNum x) (NNum y)
+      | x `op` y  =  NData 2 [] {- True  -}
+      | otherwise =  NData 1 [] {- False -}
+      where op = comp p
+    compF _        _ = error $ "primStep: unknown comp bin op: " ++ show p
+
     comp Greater = (>)
     comp GreaterEq = (>=)
     comp Less = (<)
@@ -247,7 +264,22 @@ primStep state p
     comp p_ = error $ "primStep: not comp bin op: " ++ show p_
 
 primDyadic :: TiState -> (Node -> Node -> Node) -> TiState
-primDyadic = undefined
+primDyadic (stack, dump, heap, globals, stats) op =
+  case getArgs heap stack of
+    [b1,b2]
+      | null (list se) -> case (hLookup heap b1, hLookup heap b2) of
+          (x@(NNum _), y@(NNum _)) -> (          sr,    dump, hUpdate heap ar (x `op` y), globals, stats)   -- (2.5 引数が評価済み)
+          (NNum _,      n)
+            | isDataNode n -> error $ "primDyadic: unknown 2nd data node: " ++ show n
+            | otherwise    -> (          push b2 se, sr:dump,         heap              , globals, stats)   -- (2.6 第二引数が未評価 - 2.9 適用)
+          (     n,      _)
+            | isDataNode n -> error $ "primDyadic: unknown 1st data node: " ++ show n
+            | otherwise    -> (          push b1 se, sr:dump,         heap              , globals, stats)   -- (2.6 第一引数が未評価 - 2.9 適用)
+      | otherwise  -> error $ "primDyadic: invalid stack: " ++ show (list stack)
+    as   -> error $ "primDyadic: wrong count of arguments" ++ show as
+  where
+    sr = discard 2 stack
+    (ar, se) = pop sr
 
 primXXX (stack, dump, heap, globals, stats) =
   case getArgs heap stack of
