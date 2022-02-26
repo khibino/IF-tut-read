@@ -828,4 +828,10 @@ checkList =
 
   , (NNum    3, "main = if False 5 3") -- if
   , (NNum    5, "main = if True 5 3") -- if
+  , (NNum    6, "fac n = if (n == 0) 1 (n * fac (n-1)) ;\
+                \main = fac 3")       -- if, recursive function
+
+  , (NNum    1, "main = fst (MkPair 1 2)") -- casePair
+  , (NNum    2, "main = snd (MkPair 1 2)") -- casePair
+  , (NNum    2, "main = fst (snd (fst (MkPair (MkPair 1 (MkPair 2 3)) 4)))") -- casePair nested
   ]
