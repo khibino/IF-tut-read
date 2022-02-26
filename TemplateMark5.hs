@@ -18,6 +18,8 @@ data Primitive
   | PrimConstr Int Int -- tag, arity
   | If
   | CasePair
+  | CaseList
+  | Abort
   | Greater
   | GreaterEq
   | Less
@@ -134,6 +136,12 @@ extraPreludeDefs =
   , ("MkPair", ["x", "y"], EAp (EAp (EConstr 1 2) (EVar "x")) (EVar "y"))
   , ("fst", ["p"], EAp (EAp (EVar "casePair") (EVar "p")) (EVar "K"))
   , ("snd", ["p"], EAp (EAp (EVar "casePair") (EVar "p")) (EVar "K1"))
+
+  -- exercise 2.23
+  , ("Nil", [], EConstr 1 0)
+  , ("Cons", ["x", "xs"], EAp (EAp (EConstr 2 2) (EVar "x")) (EVar "xs"))
+  , ("head", ["xs"], EAp (EAp (EAp (EVar "caseList") (EVar "xs")) (EVar "abort")) (EVar "K"))
+  , ("tail", ["xs"], EAp (EAp (EAp (EVar "caseList") (EVar "xs")) (EVar "abort")) (EVar "K1"))
   ]
 
 _extraPrelude :: String
@@ -146,6 +154,9 @@ _extraPrelude =
   , "or x y = if x True y ;"
   , "xor x y = if (and x y) False (or x y) ;"
   , "not x = if x False True"
+
+  , "head xs = caseList xs abort K"
+  , "tail xs = caseList xs abort K1"
   ]
 
 -- preludeDefs :: CoreProgram
@@ -166,7 +177,8 @@ primitives = [ ("negate", Neg)
              , ("add", Add),  ("sub", Sub)
              , ("mul", Mul),  ("div", Div)
 
-             , ("if", If), ("casePair", CasePair)
+             , ("if", If), ("casePair", CasePair), ("caseList", CaseList)
+             , ("abort", Abort)
              , (">", Greater), (">=", GreaterEq)
              , ("<", Less), ("<=", LessEq)
              , ("==", Eq)
@@ -234,6 +246,7 @@ primStep state Neg  = primNeg state
 primStep state (PrimConstr t n) = primConstr state t n
 primStep state If   = primIf state
 primStep state CasePair = primCasePair state
+primStep state Abort = error "aborted."
 primStep state p
   | p `elem` [Add, Sub, Mul, Div]                           = primDyadic state arithF
   | p `elem` [Greater, GreaterEq, Less, LessEq, Eq, NotEq]  = primDyadic state compF
