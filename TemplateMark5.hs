@@ -228,14 +228,26 @@ primStep :: TiState -> Primitive -> TiState
 primStep state Neg  = primNeg state
 primStep state (PrimConstr t n) = primConstr state t n
 primStep state If   = primIf state
-primStep state p    = primArith state binOp
+primStep state p
+  | p `elem` [Add, Sub, Mul, Div]                           = primArith state $ arith p
+  | p `elem` [Greater, GreaterEq, Less, LessEq, Eq, NotEq]  = primComp  state $ comp p
+  | otherwise                                               = error $ "primStep: unknown primitive: " ++ show p
   where
-    binOp = op p
-    op Add = (+)
-    op Sub = (-)
-    op Mul = (*)
-    op Div = div
-    op p_  = error $ "primStep: not binary op: " ++ show p_
+    arith Add = (+)
+    arith Sub = (-)
+    arith Mul = (*)
+    arith Div = div
+    arith p_  = error $ "primStep: not airth bin op: " ++ show p_
+    comp Greater = (>)
+    comp GreaterEq = (>=)
+    comp Less = (<)
+    comp LessEq = (<=)
+    comp Eq = (==)
+    comp NotEq = (/=)
+    comp p_ = error $ "primStep: not comp bin op: " ++ show p_
+
+primDyadic :: TiState -> (Node -> Node -> Node) -> TiState
+primDyadic = undefined
 
 primXXX (stack, dump, heap, globals, stats) =
   case getArgs heap stack of
@@ -280,6 +292,27 @@ primArith (stack, dump, heap, globals, stats) (<+>) =
   where
     sr = discard 2 stack
     (ar, se) = pop sr
+
+primComp :: TiState -> (Int -> Int -> Bool) -> TiState
+primComp (stack, dump, heap, globals, stats) (=!=) =
+  case getArgs heap stack of
+    [b1,b2]
+      | null (list se) -> case (hLookup heap b1, hLookup heap b2) of
+          (NNum x, NNum y) -> (                  sr,    dump, hUpdate heap ar (boolNode $ x =!= y), globals, stats)   -- (2.5 引数が評価済み)
+          (NNum _,      n)
+            | isDataNode n -> error $ "primComp: unknown 2nd data node: " ++ show n
+            | otherwise    -> (          push b2 se, sr:dump,         heap                    , globals, stats)   -- (2.6 第二引数が未評価 - 2.9 適用)
+          (     n,      _)
+            | isDataNode n -> error $ "primComp: unknown 1st data node: " ++ show n
+            | otherwise    -> (          push b1 se, sr:dump,         heap                    , globals, stats)   -- (2.6 第一引数が未評価 - 2.9 適用)
+      | otherwise  -> error $ "primComp: invalid stack: " ++ show (list stack)
+    as   -> error $ "primComp: wrong count of arguments" ++ show as
+  where
+    sr = discard 2 stack
+    (ar, se) = pop sr
+    boolNode p
+      | p         = NData 2 []
+      | otherwise = NData 1 []
 
 primConstr :: TiState -> Int -> Int -> TiState
 primConstr (stack, dump, heap, globals, stats) tag arity =
@@ -446,7 +479,9 @@ instantiateConstrUpdate :: Addr -> Int -> Int -> TiHeap -> Assoc Name Addr -> Ti
 instantiateConstrUpdate updAddr tag arith heap env =
   hUpdate heap updAddr (NPrim "Constr" (PrimConstr tag arith))
 
-instantiateConstr = undefined
+instantiateConstr :: Int -> Int -> TiHeap -> Assoc Name Addr -> (TiHeap, Addr)
+instantiateConstr tag arith heap env =
+  hAlloc heap (NPrim "Constr" (PrimConstr tag arith))
 
 instantiateLetUpdate :: Addr
                      -> Bool
@@ -659,6 +694,10 @@ testInd = "main = let x = 3 in negate (I x)"
 
 testIf = "main = if True 0 1"
 testIf2 = "main = if False 0 1"
+
+-- exercise 2.21
+testFac = "fac n = if (n == 0) 1 (n * fac (n-1)) ;\
+          \main = fac 3"
 
 test :: String -> IO ()
 test = putStrLn . showResults . eval . compile . parse
