@@ -322,7 +322,7 @@ primStep state p
 primDyadic :: (Node -> Node -> Node) -> TiState -> TiState
 primDyadic op (output, stack, dump, heap, globals, stats) =
   case getArgs heap stack of
-    [b1,b2]  ->  case (hLookup heap b1, hLookup heap b2) of
+    b1:b2:_  ->  case (hLookup heap b1, hLookup heap b2) of
           (x@(NNum _), y@(NNum _)) -> (output,          sr,    dump, hUpdate heap ar (x `op` y), globals, stats)   -- (2.5 引数が評価済み)
           (NNum _,      n)
             | isDataNode n -> error $ "primDyadic: unknown 2nd data node: " ++ show n
@@ -360,7 +360,7 @@ primXXX (stack, dump, heap, globals, stats) =
 primNeg :: TiState -> TiState
 primNeg _state@(output, stack, dump, heap, globals, stats) =
   case getArgs heap stack of
-    [b]  ->  case hLookup heap b of
+    b:_  ->  case hLookup heap b of
           NNum n           -> (output,       sr,    dump, hUpdate heap ar (NNum (- n)), globals, stats)   -- (2.5 引数が評価済み)
           x | isDataNode x -> error $ "primNeg: unknown data node: " ++ show x
             | otherwise    -> (output, push b se, sr:dump,         heap                , globals, stats)   -- (2.6 引数が未評価 - 2.9 適用)
@@ -374,7 +374,7 @@ primNeg _state@(output, stack, dump, heap, globals, stats) =
 primArith :: (Int -> Int -> Int) -> TiState -> TiState
 primArith (<+>) (output, stack, dump, heap, globals, stats) =
   case getArgs heap stack of
-    [b1,b2]  ->  case (hLookup heap b1, hLookup heap b2) of
+    b1:b2:_  ->  case (hLookup heap b1, hLookup heap b2) of
           (NNum x, NNum y) -> (output,                  sr,    dump, hUpdate heap ar (NNum $ x <+> y), globals, stats)   -- (2.5 引数が評価済み)
           (NNum _,      n)
             | isDataNode n -> error $ "primArith: unknown 2nd data node: " ++ show n
@@ -398,7 +398,7 @@ primArith (<+>) = primDyadic arithF
 primComp :: (Int -> Int -> Bool) -> TiState -> TiState
 primComp (=!=) (output, stack, dump, heap, globals, stats) =
   case getArgs heap stack of
-    [b1,b2]  ->  case (hLookup heap b1, hLookup heap b2) of
+    b1:b2:_  ->  case (hLookup heap b1, hLookup heap b2) of
           (NNum x, NNum y) -> (output,                  sr,    dump, hUpdate heap ar (boolNode $ x =!= y), globals, stats)   -- (2.5 引数が評価済み)
           (NNum _,      n)
             | isDataNode n -> error $ "primComp: unknown 2nd data node: " ++ show n
@@ -466,7 +466,7 @@ primConstr tag arity (output, stack, dump, heap, globals, stats) =
 primIf :: TiState -> TiState
 primIf (output, stack, dump, heap, globals, stats) =
   case getArgs heap stack of
-    [b, t, e]  ->  case hLookup heap b of
+    b : t : e : _  ->  case hLookup heap b of
           NData 1 {- False -} []  ->  (output,       sr,    dump, hUpdate heap ar (NInd e), globals, stats)
           NData 2 {- True  -} []  ->  (output,       sr,    dump, hUpdate heap ar (NInd t), globals, stats)
           n | isDataNode n        ->  error $ "primIf: unknown data node: " ++ show n
@@ -497,7 +497,7 @@ primIf (output, stack, dump, heap, globals, stats) =
 primCasePair :: TiState -> TiState
 primCasePair (output, stack, dump, heap, globals, stats) =
   case getArgs heap stack of
-    [p, f]  ->  case hLookup heap p of
+    p : f : _  ->  case hLookup heap p of
           NData 1 [b1, b2]  ->  (output,       sr,    dump, hUpdate heap1 ar (NAp b4 b2), globals, stats)
             where (heap1, b4) = hAlloc heap (NAp f b1)
           n | isDataNode n  ->  error $ "primCasePair: unknown data node: " ++ show n
@@ -541,7 +541,7 @@ primCasePair (output, stack, dump, heap, globals, stats) =
 primCaseList :: TiState -> TiState
 primCaseList (output, stack, dump, heap, globals, stats) =
   case getArgs heap stack of
-    [l, n, c]  ->  case hLookup heap l of
+    l : n : c : _  ->  case hLookup heap l of
           NData 1 []       -> (output,         sr,   dump, hUpdate heap  ar (NInd n)    , globals, stats)
           NData 2 [b1, b2] -> (output,         sr,   dump, hUpdate heap1 ar (NAp c1 b2) , globals, stats)
             where (heap1, c1) = hAlloc heap (NAp c b1)
@@ -576,7 +576,7 @@ primStop (output, stack, dump, heap, globals, stats) =
 primPrint :: TiState -> TiState
 primPrint (output, stack, dump, heap, globals, stats) =
   case getArgs heap stack of
-    [b1, b2]  -> case hLookup heap b1 of
+    b1 : b2 : _  -> case hLookup heap b1 of
           NNum n        ->  (output ++ [n], push b2 se,  dump, heap , globals, stats)  -- 規則 (2.12)
           _             ->  (output, push b1 se, sr : dump, heap , globals, stats)   -- 規則 (2.13)
     as  -> error $ "primXXX: wrong count of arguments" ++ show as
