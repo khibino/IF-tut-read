@@ -289,10 +289,12 @@ primDyadic op (output, stack, dump, heap, globals, stats) =
           (x@(NNum _), y@(NNum _)) -> (output,          sr,    dump, hUpdate heap ar (x `op` y), globals, stats)   -- (2.5 引数が評価済み)
           (NNum _,      n)
             | isDataNode n -> error $ "primDyadic: unknown 2nd data node: " ++ show n
-            | otherwise    -> (output,          push b2 sr, sr:dump,         heap              , globals, stats)   -- (2.6 第二引数が未評価 - 2.9 適用)
+            | otherwise, let (sc, sdump) = saveStackWithCont b2 sr dump
+              ->                      (output,          sc,   sdump,         heap              , globals, stats)   -- (2.6 第二引数が未評価 - 2.9 適用)
           (     n,      _)
             | isDataNode n -> error $ "primDyadic: unknown 1st data node: " ++ show n
-            | otherwise    -> (output,          push b1 sr, sr:dump,         heap              , globals, stats)   -- (2.6 第一引数が未評価 - 2.9 適用)
+            | otherwise, let (sc, sdump) = saveStackWithCont b1 sr dump
+              ->                      (output,          sc,   sdump,         heap              , globals, stats)   -- (2.6 第一引数が未評価 - 2.9 適用)
     as   -> error $ "primDyadic: wrong count of arguments" ++ show as
   where
     sr = discard 2 stack
@@ -300,7 +302,7 @@ primDyadic op (output, stack, dump, heap, globals, stats) =
 
 primXXX (stack, dump, heap, globals, stats) =
   case getArgs heap stack of
-    as  ->  undefined
+    as | let (sc, sdump) = saveStackWithCont undefined sr dump ->  undefined
     ---   -> error $ "primXXX: wrong count of arguments" ++ show as
   where
     arity = undefined
@@ -313,7 +315,8 @@ primNeg _state@(output, stack, dump, heap, globals, stats) =
     b:_  ->  case hLookup heap b of
           NNum n           -> (output,        sr,    dump, hUpdate heap ar (NNum (- n)), globals, stats)   -- (2.5 引数が評価済み)
           x | isDataNode x -> error $ "primNeg: unknown data node: " ++ show x
-            | otherwise    -> (output, push b sr, sr:dump,         heap                , globals, stats)   -- (2.6 引数が未評価 - 2.9 適用)
+            | otherwise, let (sc, sdump) = saveStackWithCont b sr dump
+              ->              (output,        sc,   sdump,         heap                , globals, stats)   -- (2.6 引数が未評価 - 2.9 適用)
     as   -> error $ "primNeg: wrong count of arguments" ++ show as
   where
     sr = discard 1 stack
@@ -380,7 +383,8 @@ primIf (output, stack, dump, heap, globals, stats) =
           NData 1 {- False -} []  ->  (output,       sr,    dump, hUpdate heap ar (NInd e), globals, stats)
           NData 2 {- True  -} []  ->  (output,       sr,    dump, hUpdate heap ar (NInd t), globals, stats)
           n | isDataNode n        ->  error $ "primIf: unknown data node: " ++ show n
-            | otherwise           ->  (output, push b sr, sr:dump,         heap            , globals, stats)
+            | otherwise, let (sc, sdump) = saveStackWithCont b sr dump
+              ->                      (output,       sc,   sdump,         heap            , globals, stats)
     _  ->   error "primIf: wrong count of argument"
   where
     sr = discard 3 stack
@@ -411,7 +415,8 @@ primCasePair (output, stack, dump, heap, globals, stats) =
           NData 1 [b1, b2]  ->  (output,       sr,    dump, hUpdate heap1 ar (NAp b4 b2), globals, stats)
             where (heap1, b4) = hAlloc heap (NAp f b1)
           n | isDataNode n  ->  error $ "primCasePair: unknown data node: " ++ show n
-            | otherwise     ->  (output, push p sr, sr:dump,         heap                , globals, stats)
+            | otherwise, let (sc, sdump) = saveStackWithCont p sr dump
+              ->                (output,       sc,   sdump,         heap                , globals, stats)
     as  ->  error $ "primCasePair: wrong count of arguments: " ++ show as
   where
     arity = 2
@@ -456,7 +461,8 @@ primCaseList (output, stack, dump, heap, globals, stats) =
           NData 2 [b1, b2] -> (output,         sr,   dump, hUpdate heap1 ar (NAp c1 b2) , globals, stats)
             where (heap1, c1) = hAlloc heap (NAp c b1)
           n' | isDataNode n'  ->  error $ "primCaseList: unknown data node: " ++ show n'
-             | otherwise     ->  (output, push l sr, sr:dump,        heap                 , globals, stats)
+             | otherwise, let (sc, sdump) = saveStackWithCont l sr dump
+               ->             (output,         sc,  sdump,        heap                 , globals, stats)
     as  ->  error $ "primCaseList: wrong count of arguments" ++ show as
   where
     arity = 3
@@ -488,7 +494,8 @@ primPrint (output, stack, dump, heap, globals, stats) =
   case getArgs heap stack of
     b1 : b2 : _  -> case hLookup heap b1 of
           NNum n        ->  (output ++ [n], push b2 se,  dump, heap , globals, stats)  -- 規則 (2.12)
-          _             ->  (output, push b1 sr, sr : dump, heap , globals, stats)   -- 規則 (2.13)
+          _ | let (sc, sdump) = saveStackWithCont b1 sr dump
+              ->            (output,                sc, sdump, heap , globals, stats)   -- 規則 (2.13)
     as  -> error $ "primXXX: wrong count of arguments" ++ show as
   where
     arity = 2
