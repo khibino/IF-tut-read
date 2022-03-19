@@ -427,8 +427,8 @@ primConstr :: Int -> Int -> TiState -> TiState
 primConstr tag arity (output, stack, dump, heap, globals, stats) =
   case getArgs heap stack of
     bs
-      | length bs /= arity    ->  error $ "primConstr: wrong count of arguments: " ++ show bs
-      | otherwise             ->  (output,   sr, dump, hUpdate heap ar (NData tag bs), globals, stats)  -- (2.10)
+      | length bs < arity     ->  error $ "primConstr: wrong count of arguments: " ++ show bs ++ ", requires " ++ show arity ++ " args"
+      | otherwise             ->  (output,   sr, dump, hUpdate heap ar (NData tag $ take arity bs), globals, stats)  -- (2.10)
   where
     sr = discard arity stack
     (ar, se) = pop sr
