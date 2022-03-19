@@ -13,6 +13,8 @@ import Data.Either (isLeft)
 
 {-  (stack,dump,heap,globals)  -}
 
+-- type Primitive = TiState -> TiState
+
 data Primitive
   = Neg | Add | Sub | Mul | Div
   | PrimConstr Int Int -- tag, arity
@@ -29,6 +31,8 @@ data Primitive
   | Stop
   | Print
   deriving (Eq, Show)
+{-
+ -}
 
 data Node
   = NAp  Addr Addr
@@ -203,7 +207,8 @@ primitives = [ ("negate", Neg)
              , ("==", Eq)
              , ("/=", NotEq)
              ]
--- TODO: 二項演算の parser を実装する
+{-
+ -}
 
 allocateSc :: TiHeap -> CoreScDefn -> (TiHeap, (Name, Addr))
 allocateSc heap scDefn = case scDefn of
@@ -265,7 +270,7 @@ step state =
 
 primStep :: TiState -> Primitive -> TiState
 primStep state Neg  = primNeg state
-primStep state (PrimConstr t n) = primConstr state t n
+primStep state (PrimConstr t n) = primConstr t n state
 primStep state If   = primIf state
 primStep state CasePair = primCasePair state
 primStep state CaseList = primCaseList state
@@ -273,8 +278,8 @@ primStep _state Abort = error "aborted."
 primStep state Stop   = primStop state
 primStep state Print  = primPrint state
 primStep state p
-  | p `elem` [Add, Sub, Mul, Div]                           = primDyadic state arithF
-  | p `elem` [Greater, GreaterEq, Less, LessEq, Eq, NotEq]  = primDyadic state compF
+  | p `elem` [Add, Sub, Mul, Div]                           = primDyadic arithF state
+  | p `elem` [Greater, GreaterEq, Less, LessEq, Eq, NotEq]  = primDyadic compF state
   | otherwise                                               = error $ "primStep: unknown primitive: " ++ show p
 {-
 primStep state p
@@ -307,8 +312,8 @@ primStep state p
     comp NotEq = (/=)
     comp p_ = error $ "primStep: not comp bin op: " ++ show p_
 
-primDyadic :: TiState -> (Node -> Node -> Node) -> TiState
-primDyadic (output, stack, dump, heap, globals, stats) op =
+primDyadic :: (Node -> Node -> Node) -> TiState -> TiState
+primDyadic op (output, stack, dump, heap, globals, stats) =
   case getArgs heap stack of
     [b1,b2]
       | null (list se) -> case (hLookup heap b1, hLookup heap b2) of
@@ -351,8 +356,8 @@ primNeg _state@(output, stack, dump, heap, globals, stats) =
     (ar, se) = pop sr
 
 -- exercise 2.17
-primArith :: TiState -> (Int -> Int -> Int) -> TiState
-primArith (output, stack, dump, heap, globals, stats) (<+>) =
+primArith :: (Int -> Int -> Int) -> TiState -> TiState
+primArith (<+>) (output, stack, dump, heap, globals, stats) =
   case getArgs heap stack of
     [b1,b2]
       | null (list se) -> case (hLookup heap b1, hLookup heap b2) of
@@ -369,8 +374,8 @@ primArith (output, stack, dump, heap, globals, stats) (<+>) =
     sr = discard 2 stack
     (ar, se) = pop sr
 
-primComp :: TiState -> (Int -> Int -> Bool) -> TiState
-primComp (output, stack, dump, heap, globals, stats) (=!=) =
+primComp :: (Int -> Int -> Bool) -> TiState -> TiState
+primComp (=!=) (output, stack, dump, heap, globals, stats) =
   case getArgs heap stack of
     [b1,b2]
       | null (list se) -> case (hLookup heap b1, hLookup heap b2) of
@@ -390,8 +395,8 @@ primComp (output, stack, dump, heap, globals, stats) (=!=) =
       | p         = NData 2 []
       | otherwise = NData 1 []
 
-primConstr :: TiState -> Int -> Int -> TiState
-primConstr (output, stack, dump, heap, globals, stats) tag arity =
+primConstr :: Int -> Int -> TiState -> TiState
+primConstr tag arity (output, stack, dump, heap, globals, stats) =
   case getArgs heap stack of
     bs
       | not (null $ list se)  ->  error $ "primConstr: invalid stack depth: " ++ show (list stack)
