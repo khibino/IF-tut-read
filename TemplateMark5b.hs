@@ -121,10 +121,12 @@ compile program =
     ([], initialStack, initialTiDump, initialHeap, globals, tiStatInitial)
   where
     scDefs = program ++ preludeDefs ++ extraPreludeDefs
-    (initialHeap, globals) = buildInitialHeap scDefs
-    istack = [addressOfMain]
-    initialStack = Stack { list = istack, depth = length istack, maxDepth = length istack }
+    (initialHeap0, globals) = buildInitialHeap scDefs
     addressOfMain = aLookup globals "main" (error "main is not defined")
+    addressOfPrintList = aLookup globals "printList" (error "printList is not defined")
+    (initialHeap, printAddr) = hAlloc initialHeap0 (NAp addressOfPrintList addressOfMain)
+    istack = [printAddr]
+    initialStack = Stack { list = istack, depth = length istack, maxDepth = length istack }
 
 extraPreludeDefs :: CoreProgram
 extraPreludeDefs =
@@ -195,6 +197,7 @@ primitives = [ ("negate", Neg)
 
              , ("if", If), ("casePair", CasePair), ("caseList", CaseList)
              , ("abort", Abort)
+             , ("stop", Stop), ("print", Print)
              , (">", Greater), (">=", GreaterEq)
              , ("<", Less), ("<=", LessEq)
              , ("==", Eq)
@@ -235,9 +238,12 @@ doAdminPrimStep state = applyToStats tiStatIncPrimStep state
 
 tiFinal :: TiState -> Bool
 tiFinal state = case state of
-  (_, Stack { list = [soleAddr] }, [], heap, _, _) ->  isDataNode (hLookup heap soleAddr)
-  (_, Stack { list = [] }, _, _, _, _)             ->  error "Empty stack!"
-  _                                                ->  False
+   (_, Stack { list = [] }, _, _, _, _)             ->  True
+   _                                                ->  False
+-- tiFinal state = case state of
+--   (_, Stack { list = [soleAddr] }, [], heap, _, _) ->  isDataNode (hLookup heap soleAddr)
+--   (_, Stack { list = [] }, _, _, _, _)             ->  error "Empty stack!"
+--   _                                                ->  False
 
 isDataNode :: Node -> Bool
 isDataNode node = case node of
@@ -264,6 +270,8 @@ primStep state If   = primIf state
 primStep state CasePair = primCasePair state
 primStep state CaseList = primCaseList state
 primStep _state Abort = error "aborted."
+primStep state Stop   = primStop state
+primStep state Print  = primPrint state
 primStep state p
   | p `elem` [Add, Sub, Mul, Div]                           = primDyadic state arithF
   | p `elem` [Greater, GreaterEq, Less, LessEq, Eq, NotEq]  = primDyadic state compF
@@ -543,7 +551,7 @@ primPrint (output, stack, dump, heap, globals, stats) =
   case getArgs heap stack of
     [b1, b2]
       | null (list se)  -> case hLookup heap b1 of
-          NNum _        ->  (output, push b2 se,  dump, heap , globals, stats)  -- 規則 (2.12)
+          NNum n        ->  (output ++ [n], push b2 se,  dump, heap , globals, stats)  -- 規則 (2.12)
           _             ->  (output, push b1 se, sr : dump, heap , globals, stats)   -- 規則 (2.13)
       | otherwise       ->  error $ "primPrint: invalid stack" ++ show (list stack)
     as  -> error $ "primXXX: wrong count of arguments" ++ show as
@@ -715,7 +723,10 @@ instantiateLet isrec defs body heap env =
 showResults :: [TiState] -> String
 showResults states =
   unlines (map iDisplay (iLaynList $ map showState states) ++
-           [iDisplay (showStats $ last states)])
+           [iDisplay (showStats lastStates)] ++
+           [iDisplay (showOutput lastStates)])
+  where
+    lastStates = last states
   -- iDisplay (iConcat [ iLayn (map showState states)
   --                   , showStats (last states)
   --                   ])
@@ -823,6 +834,10 @@ showStats (output, stack, _dump, _heap, _globals, stats) =
           , iStr "Super combinator steps = ", iNum (scSteps stats), iNewline
           , iStr "Primitive steps = ", iNum (primSteps stats), iNewline
           , showStackMaxDepth stack ]
+
+showOutput :: TiState -> IseqRep
+showOutput (output, _, _, _, _, _) =
+  iConcat [iStr "Output: ", iStr (show output), iNewline]
 
 -- exercise 2.4 - arranged
 testProg0, testProg1, testProg2 :: String
