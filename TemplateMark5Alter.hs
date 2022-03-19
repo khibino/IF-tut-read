@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 
 module TemplateMark5Alter where
 
@@ -13,26 +14,13 @@ import Data.Either (isLeft)
 
 {-  (stack,dump,heap,globals)  -}
 
--- type Primitive = TiState -> TiState
+type Primitive = TiState -> TiState
 
-data Primitive
-  = Neg | Add | Sub | Mul | Div
-  | PrimConstr Int Int -- tag, arity
-  | If
-  | CasePair
-  | CaseList
-  | Greater
-  | GreaterEq
-  | Less
-  | LessEq
-  | Eq
-  | NotEq
-  | Abort
-  | Stop
-  | Print
-  deriving (Eq, Show)
-{-
- -}
+instance Eq (TiState -> TiState) where
+  _ == _  =  False
+
+instance Show (TiState -> TiState) where
+  show _ = "<primitive>"
 
 data Node
   = NAp  Addr Addr
@@ -193,22 +181,19 @@ buildInitialHeap scDefs =
     (heap2, primAddrs) = mapAccumL allocatePrim heap1 primitives
 
 primitives :: Assoc Name Primitive
-primitives = [ ("negate", Neg)
-             , ("+", Add),  ("-", Sub)
-             , ("*", Mul),  ("/", Div)
-             , ("add", Add),  ("sub", Sub)
-             , ("mul", Mul),  ("div", Div)
+primitives = [ ("negate", primNeg)
+             , ("+", primArith (+)),  ("-", primArith (-))
+             , ("*", primArith (*)),  ("/", primArith div)
+             , ("add", primArith (+)),  ("sub", primArith (-))
+             , ("mul", primArith (*)),  ("div", primArith div)
 
-             , ("if", If), ("casePair", CasePair), ("caseList", CaseList)
-             , ("abort", Abort)
-             , ("stop", Stop), ("print", Print)
-             , (">", Greater), (">=", GreaterEq)
-             , ("<", Less), ("<=", LessEq)
-             , ("==", Eq)
-             , ("/=", NotEq)
+             , ("if", primIf), ("casePair", primCasePair), ("caseList", primCaseList)
+             , ("abort", primAbort)
+             , ("stop", primStop), ("print", primPrint)
+             , (">", primComp (>)), (">=", primComp (>=))
+             , ("<", primComp (<)), ("<=", primComp (<=))
+             , ("==", primComp (==)), ("/=", primComp (/=))
              ]
-{-
- -}
 
 allocateSc :: TiHeap -> CoreScDefn -> (TiHeap, (Name, Addr))
 allocateSc heap scDefn = case scDefn of
@@ -269,12 +254,14 @@ step state =
         dispatch (NData t as)               =  dataStep state t as
 
 primStep :: TiState -> Primitive -> TiState
+primStep state prim = prim state
+{-
 primStep state Neg  = primNeg state
 primStep state (PrimConstr t n) = primConstr t n state
 primStep state If   = primIf state
 primStep state CasePair = primCasePair state
 primStep state CaseList = primCaseList state
-primStep _state Abort = error "aborted."
+primStep state Abort  = primAbort state
 primStep state Stop   = primStop state
 primStep state Print  = primPrint state
 primStep state p
@@ -311,6 +298,7 @@ primStep state p
     comp Eq = (==)
     comp NotEq = (/=)
     comp p_ = error $ "primStep: not comp bin op: " ++ show p_
+ -}
 
 primDyadic :: (Node -> Node -> Node) -> TiState -> TiState
 primDyadic op (output, stack, dump, heap, globals, stats) =
@@ -538,6 +526,9 @@ disadvantage は、
 Bool や List といったデータ型ごとにプリミティブを実装する必要があること
  -}
 
+primAbort :: TiState -> TiState
+primAbort _ = error "aborted."
+
 primStop :: TiState -> TiState
 primStop (output, stack, dump, heap, globals, stats) =
   case getArgs heap stack of
@@ -685,11 +676,11 @@ instantiateAndUpdate expr updAddr heap env = case expr of
 
 instantiateConstrUpdate :: Addr -> Int -> Int -> TiHeap -> Assoc Name Addr -> TiHeap
 instantiateConstrUpdate updAddr tag arith heap env =
-  hUpdate heap updAddr (NPrim "Constr" (PrimConstr tag arith))
+  hUpdate heap updAddr (NPrim "Constr" (primConstr tag arith))
 
 instantiateConstr :: Int -> Int -> TiHeap -> Assoc Name Addr -> (TiHeap, Addr)
 instantiateConstr tag arith heap env =
-  hAlloc heap (NPrim "Constr" (PrimConstr tag arith))
+  hAlloc heap (NPrim "Constr" (primConstr tag arith))
 
 instantiateLetUpdate :: Addr
                      -> Bool
