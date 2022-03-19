@@ -27,6 +27,7 @@ data Primitive
   | NotEq
   | Abort
   | Stop
+  | Print
   deriving (Eq, Show)
 
 data Node
@@ -148,6 +149,9 @@ extraPreludeDefs =
 
   , ("length", ["xs"], EAp (EAp (EAp (EVar "caseList") (EVar "xs")) (ENum 0)) (EVar "length'"))
   , ("length'", ["x", "xs"], EAp (EAp (EVar "+") (ENum 1)) (EAp (EVar "length") (EVar "xs")))
+
+  , ("printList",["xs"],EAp (EAp (EAp (EVar "caseList") (EVar "xs")) (EVar "stop")) (EVar "printCons"))
+  , ("printCons",["h","t"],EAp (EAp (EVar "print") (EVar "h")) (EAp (EVar "printList") (EVar "t")))
   ]
 
 _extraPrelude :: String
@@ -159,13 +163,16 @@ _extraPrelude =
 
   , "or x y = if x True y ;"
   , "xor x y = if (and x y) False (or x y) ;"
-  , "not x = if x False True"
+  , "not x = if x False True ;"
 
-  , "head xs = caseList xs abort K"
-  , "tail xs = caseList xs abort K1"
+  , "head xs = caseList xs abort K ;"
+  , "tail xs = caseList xs abort K1 ;"
 
-  , "length xs = caseList xs 0 length'"
-  , "length' x xs = 1 + length xs"
+  , "length xs = caseList xs 0 length' ;"
+  , "length' x xs = 1 + length xs ;"
+
+  , "printList xs = caseList xs stop printCons ;"
+  , "printCons h t = print h (printList t)"
   ]
 
 -- preludeDefs :: CoreProgram
@@ -230,7 +237,7 @@ tiFinal :: TiState -> Bool
 tiFinal state = case state of
   (_, Stack { list = [soleAddr] }, [], heap, _, _) ->  isDataNode (hLookup heap soleAddr)
   (_, Stack { list = [] }, _, _, _, _)             ->  error "Empty stack!"
-  _                                             ->  False
+  _                                                ->  False
 
 isDataNode :: Node -> Bool
 isDataNode node = case node of
@@ -530,6 +537,33 @@ primStop (output, stack, dump, heap, globals, stats) =
     sr = discard arity stack
     (ar, se) = pop sr
 -- 規則 (2.11)
+
+primPrint :: TiState -> TiState
+primPrint (output, stack, dump, heap, globals, stats) =
+  case getArgs heap stack of
+    [b1, b2]
+      | null (list se)  -> case hLookup heap b1 of
+          NNum _        ->  (output, push b2 se,  dump, heap , globals, stats)  -- 規則 (2.12)
+          _             ->  (output, push b1 se, sr : dump, heap , globals, stats)   -- 規則 (2.13)
+      | otherwise       ->  error $ "primPrint: invalid stack" ++ show (list stack)
+    as  -> error $ "primXXX: wrong count of arguments" ++ show as
+  where
+    arity = 2
+    sr = discard arity stack
+    (_ar, se) = pop sr
+
+{-
+primXXX (stack, dump, heap, globals, stats) =
+  case getArgs heap stack of
+    as
+      | null (list se)  ->  undefined
+      | otherwise       ->  error $ "primXXX: invalid stack" ++ show (list stack)
+    ---   -> error $ "primXXX: wrong count of arguments" ++ show as
+  where
+    arity = undefined
+    sr = discard arity stack
+    (ar, se) = pop sr
+ -}
 
 numStep :: TiState -> Int -> TiState
 -- numStep _state _n = error "Number applied as a function"
@@ -863,6 +897,10 @@ testFac = "fac n = if (n == 0) 1 (n * fac (n-1)) ;\
 testCasePair = "main = fst (snd (fst (MkPair (MkPair 1 (MkPair 2 3)) 4)))"
 
 testLength = "main = length (Cons 1 (Cons 2 (Cons 3 Nil)))"
+
+testList = "main = Cons 1 (Cons 2 (Cons 3 Nil))"
+
+testList2 = "main = Cons (1 + 2) (Cons 2 (Cons 3 Nil))"
 
 test :: String -> IO ()
 test = putStrLn . showResults . eval . compile . parse
