@@ -370,6 +370,7 @@ primNeg _state@(output, stack, dump, heap, globals, stats) =
     (ar, se) = pop sr
 
 -- exercise 2.17
+{-
 primArith :: (Int -> Int -> Int) -> TiState -> TiState
 primArith (<+>) (output, stack, dump, heap, globals, stats) =
   case getArgs heap stack of
@@ -385,7 +386,15 @@ primArith (<+>) (output, stack, dump, heap, globals, stats) =
   where
     sr = discard 2 stack
     (ar, se) = pop sr
+ -}
 
+primArith :: (Int -> Int -> Int) -> TiState -> TiState
+primArith (<+>) = primDyadic arithF
+  where
+    arithF (NNum x) (NNum y) = NNum $ x <+> y
+    arithF  x        y       = error $ "primStep: invalid arith arguments: " ++ show (x, y)
+
+{-
 primComp :: (Int -> Int -> Bool) -> TiState -> TiState
 primComp (=!=) (output, stack, dump, heap, globals, stats) =
   case getArgs heap stack of
@@ -404,6 +413,15 @@ primComp (=!=) (output, stack, dump, heap, globals, stats) =
     boolNode p
       | p         = NData 2 []
       | otherwise = NData 1 []
+ -}
+
+primComp :: (Int -> Int -> Bool) -> TiState -> TiState
+primComp (=!=) = primDyadic compF
+  where
+    compF (NNum x) (NNum y)
+      | x =!= y   =  NData 2 [] {- True  -}
+      | otherwise =  NData 1 [] {- False -}
+    compF  x        y  = error $ "primStep: invalid comp arguments: " ++ show (x, y)
 
 primConstr :: Int -> Int -> TiState -> TiState
 primConstr tag arity (output, stack, dump, heap, globals, stats) =
