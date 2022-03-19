@@ -274,50 +274,6 @@ step state =
 
 primStep :: TiState -> Primitive -> TiState
 primStep state prim = prim state
-{-
-primStep state Neg  = primNeg state
-primStep state (PrimConstr t n) = primConstr t n state
-primStep state If   = primIf state
-primStep state CasePair = primCasePair state
-primStep state CaseList = primCaseList state
-primStep state Abort  = primAbort state
-primStep state Stop   = primStop state
-primStep state Print  = primPrint state
-primStep state p
-  | p `elem` [Add, Sub, Mul, Div]                           = primDyadic arithF state
-  | p `elem` [Greater, GreaterEq, Less, LessEq, Eq, NotEq]  = primDyadic compF state
-  | otherwise                                               = error $ "primStep: unknown primitive: " ++ show p
-{-
-primStep state p
-  | p `elem` [Add, Sub, Mul, Div]                           = primArith state $ arith p
-  | p `elem` [Greater, GreaterEq, Less, LessEq, Eq, NotEq]  = primComp  state $ comp p
-  | otherwise                                               = error $ "primStep: unknown primitive: " ++ show p
- -}
-  where
-    arithF (NNum x) (NNum y) = NNum $ x `op` y
-      where op = arith p
-    arithF _        _        = error $ "primStep: unknown arith bin op: " ++ show p
-
-    arith Add = (+)
-    arith Sub = (-)
-    arith Mul = (*)
-    arith Div = div
-    arith p_  = error $ "primStep: not airth bin op: " ++ show p_
-
-    compF (NNum x) (NNum y)
-      | x `op` y  =  NData 2 [] {- True  -}
-      | otherwise =  NData 1 [] {- False -}
-      where op = comp p
-    compF _        _ = error $ "primStep: unknown comp bin op: " ++ show p
-
-    comp Greater = (>)
-    comp GreaterEq = (>=)
-    comp Less = (<)
-    comp LessEq = (<=)
-    comp Eq = (==)
-    comp NotEq = (/=)
-    comp p_ = error $ "primStep: not comp bin op: " ++ show p_
- -}
 
 primDyadic :: (Node -> Node -> Node) -> TiState -> TiState
 primDyadic op (output, stack, dump, heap, globals, stats) =
@@ -344,19 +300,6 @@ primXXX (stack, dump, heap, globals, stats) =
     sr = discard arity stack
     (ar, _se) = pop sr
 
-{-
-primXXX (stack, dump, heap, globals, stats) =
-  case getArgs heap stack of
-    as
-      | null (list se)  ->  undefined
-      | otherwise       ->  error $ "primXXX: invalid stack" ++ show (list stack)
-    ---   -> error $ "primXXX: wrong count of arguments" ++ show as
-  where
-    arity = undefined
-    sr = discard arity stack
-    (ar, se) = pop sr
- -}
-
 primNeg :: TiState -> TiState
 primNeg _state@(output, stack, dump, heap, globals, stats) =
   case getArgs heap stack of
@@ -369,51 +312,11 @@ primNeg _state@(output, stack, dump, heap, globals, stats) =
     sr = discard 1 stack
     (ar, _se) = pop sr
 
--- exercise 2.17
-{-
-primArith :: (Int -> Int -> Int) -> TiState -> TiState
-primArith (<+>) (output, stack, dump, heap, globals, stats) =
-  case getArgs heap stack of
-    b1:b2:_  ->  case (hLookup heap b1, hLookup heap b2) of
-          (NNum x, NNum y) -> (output,                  sr,    dump, hUpdate heap ar (NNum $ x <+> y), globals, stats)   -- (2.5 引数が評価済み)
-          (NNum _,      n)
-            | isDataNode n -> error $ "primArith: unknown 2nd data node: " ++ show n
-            | otherwise    -> (output,          push b2 sr, sr:dump,         heap                    , globals, stats)   -- (2.6 第二引数が未評価 - 2.9 適用)
-          (     n,      _)
-            | isDataNode n -> error $ "primArith: unknown 1st data node: " ++ show n
-            | otherwise    -> (output,          push b1 sr, sr:dump,         heap                    , globals, stats)   -- (2.6 第一引数が未評価 - 2.9 適用)
-    as   -> error $ "primArith: wrong count of arguments" ++ show as
-  where
-    sr = discard 2 stack
-    (ar, _se) = pop sr
- -}
-
 primArith :: (Int -> Int -> Int) -> TiState -> TiState
 primArith (<+>) = primDyadic arithF
   where
     arithF (NNum x) (NNum y) = NNum $ x <+> y
     arithF  x        y       = error $ "primStep: invalid arith arguments: " ++ show (x, y)
-
-{-
-primComp :: (Int -> Int -> Bool) -> TiState -> TiState
-primComp (=!=) (output, stack, dump, heap, globals, stats) =
-  case getArgs heap stack of
-    b1:b2:_  ->  case (hLookup heap b1, hLookup heap b2) of
-          (NNum x, NNum y) -> (output,                  sr,    dump, hUpdate heap ar (boolNode $ x =!= y), globals, stats)   -- (2.5 引数が評価済み)
-          (NNum _,      n)
-            | isDataNode n -> error $ "primComp: unknown 2nd data node: " ++ show n
-            | otherwise    -> (output,          push b2 sr, sr:dump,         heap                    , globals, stats)   -- (2.6 第二引数が未評価 - 2.9 適用)
-          (     n,      _)
-            | isDataNode n -> error $ "primComp: unknown 1st data node: " ++ show n
-            | otherwise    -> (output,          push b1 sr, sr:dump,         heap                    , globals, stats)   -- (2.6 第一引数が未評価 - 2.9 適用)
-    as   -> error $ "primComp: wrong count of arguments" ++ show as
-  where
-    sr = discard 2 stack
-    (ar, _se) = pop sr
-    boolNode p
-      | p         = NData 2 []
-      | otherwise = NData 1 []
- -}
 
 primComp :: (Int -> Int -> Bool) -> TiState -> TiState
 primComp (=!=) = primDyadic compF
@@ -590,14 +493,6 @@ numStep :: TiState -> Int -> TiState
 numStep state _n =
   case state of
     (output, stack, s:dump, heap, globals, stats) -> (output, s, dump, heap, globals, stats)  -- (2.7)
-    -- (output, stack, s:dump, heap, globals, stats)
-    --   | null (list stack1) -> (output, s, dump, heap, globals, stats)  -- (2.7)
-    --   | otherwise          -> error $
-    --                           "numStep: invalid stack: " ++ show (list stack) ++ "\n" ++
-    --                           unlines (map show $ allocs heap) ++ "\n"
-    --                           -- unlines (map show $ dump)
-      where
-        (_a, stack1) = pop stack
     (     _,    _,     [],     _,      _,     _) -> error $ "numStep: invalid state, dump is empty:\n" ++ showResults [state]
 
 apStep :: TiState -> Addr -> Addr -> TiState
@@ -640,13 +535,6 @@ dataStep :: TiState -> Int -> [Addr] -> TiState
 dataStep state tag args =
   case state of
     (output, stack, s:dump, heap, globals, stats) -> (output, s, dump, heap, globals, stats)  -- (2.7)
-    -- (output, stack, s:dump, heap, globals, stats)
-    --   | null (list stack1) -> (output, s, dump, heap, globals, stats)  -- (2.7)
-    --   | otherwise          -> error $
-    --                           "dataStep: invalid stack: " ++ show (list stack) ++ "\n" ++
-    --                           unlines (map show $ allocs heap) ++ "\n"
-      where
-        (_a, stack1) = pop stack
     (output,    _,     [],     _,      _,     _) -> error $ "dataStep: invalid state, dump is empty:\n" ++ showResults [state]
 
 getArgs :: TiHeap -> TiStack -> [Addr]
