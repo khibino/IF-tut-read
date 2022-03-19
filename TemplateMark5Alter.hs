@@ -108,8 +108,17 @@ applyToStats f (output, stack, dump, heap, scDefs, stats) =
   (output, stack, dump, heap, scDefs, f stats)
 
 compile :: CoreProgram -> TiState
--- compile program = undefined
 compile program =
+    ([], initialStack, initialTiDump, initialHeap, globals, tiStatInitial)
+  where
+    scDefs = program ++ preludeDefs ++ extraPreludeDefs
+    (initialHeap, globals) = buildInitialHeap scDefs
+    istack = [addressOfMain]
+    initialStack = Stack { list = istack, depth = length istack, maxDepth = length istack }
+    addressOfMain = aLookup globals "main" (error "main is not defined")
+
+compileList :: CoreProgram -> TiState
+compileList program =
     ([], initialStack, initialTiDump, initialHeap, globals, tiStatInitial)
   where
     scDefs = program ++ preludeDefs ++ extraPreludeDefs
@@ -217,6 +226,14 @@ eval state = state : restStates
       | otherwise     = eval nextState
     nextState = doAdmin (step state)
 
+evalList :: TiState -> [TiState]
+evalList state = state : restStates
+  where
+    restStates
+      | tiFinalList state = []
+      | otherwise     = evalList nextState
+    nextState = doAdmin (step state)
+
 doAdmin :: TiState -> TiState
 doAdmin state = applyToStats tiStatIncSteps state
 
@@ -228,12 +245,14 @@ doAdminPrimStep state = applyToStats tiStatIncPrimStep state
 
 tiFinal :: TiState -> Bool
 tiFinal state = case state of
-   (_, Stack { list = [] }, _, _, _, _)             ->  True
-   _                                                ->  False
--- tiFinal state = case state of
---   (_, Stack { list = [soleAddr] }, [], heap, _, _) ->  isDataNode (hLookup heap soleAddr)
---   (_, Stack { list = [] }, _, _, _, _)             ->  error "Empty stack!"
---   _                                                ->  False
+  (_, Stack { list = [soleAddr] }, [], heap, _, _) ->  isDataNode (hLookup heap soleAddr)
+  (_, Stack { list = [] }, _, _, _, _)             ->  error "Empty stack!"
+  _                                                ->  False
+
+tiFinalList :: TiState -> Bool
+tiFinalList state = case state of
+   (_, Stack { list = [] }, _, _, _, _)            ->  True
+   _                                               ->  False
 
 isDataNode :: Node -> Bool
 isDataNode node = case node of
@@ -920,13 +939,16 @@ testCasePair = "main = fst (snd (fst (MkPair (MkPair 1 (MkPair 2 3)) 4)))"
 
 testLength = "main = length (Cons 1 (Cons 2 (Cons 3 Nil)))"
 
-testList = "main = Cons 1 (Cons 2 (Cons 3 Nil))"
+testPrintList = "main = Cons 1 (Cons 2 (Cons 3 Nil))"
 
-testList2 = "main = Cons (1 + 2) (Cons 2 (Cons 3 Nil))"
+testPrintList2 = "main = Cons (1 + 2) (Cons 2 (Cons 3 Nil))"
 
 test :: String -> IO ()
 test = putStrLn . showResults . eval . compile . parse
 -- test = putStrLn . iDisplay . showState . head . eval . compile . parse
+
+testList :: String -> IO ()
+testList = putStrLn . showResults . evalList . compileList . parse
 
 check :: Node -> String -> Either String String
 check expect prog
