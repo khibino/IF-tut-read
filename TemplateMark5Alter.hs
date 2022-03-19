@@ -473,7 +473,7 @@ primStop (output, stack, dump, heap, globals, stats) =
   where
     arity = 0
     sr = discard arity stack
-    (ar, se) = pop sr
+    (_ar, se) = pop sr
 -- 規則 (2.11)
 
 primPrint :: TiState -> TiState
@@ -492,8 +492,8 @@ numStep :: TiState -> Int -> TiState
 -- numStep _state _n = error "Number applied as a function"
 numStep state _n =
   case state of
-    (output, stack, s:dump, heap, globals, stats) -> (output, s, dump, heap, globals, stats)  -- (2.7)
-    (     _,    _,     [],     _,      _,     _) -> error $ "numStep: invalid state, dump is empty:\n" ++ showResults [state]
+    (output, _stack, s:dump, heap, globals, stats) -> (output, s, dump, heap, globals, stats)  -- (2.7)
+    (     _,      _,     [],     _,      _,     _) -> error $ "numStep: invalid state, dump is empty:\n" ++ showResults [state]
 
 apStep :: TiState -> Addr -> Addr -> TiState
 apStep state a1 a2 =
@@ -532,10 +532,10 @@ indStep state addr = case state of
       (_, stack1) = pop stack
 
 dataStep :: TiState -> Int -> [Addr] -> TiState
-dataStep state tag args =
+dataStep state _tag _args =
   case state of
-    (output, stack, s:dump, heap, globals, stats) -> (output, s, dump, heap, globals, stats)  -- (2.7)
-    (output,    _,     [],     _,      _,     _) -> error $ "dataStep: invalid state, dump is empty:\n" ++ showResults [state]
+    (output, _stack, s:dump, heap, globals, stats) -> (output, s, dump, heap, globals, stats)  -- (2.7)
+    (     _,      _,     [],     _,      _,     _) -> error $ "dataStep: invalid state, dump is empty:\n" ++ showResults [state]
 
 getArgs :: TiHeap -> TiStack -> [Addr]
 getArgs heap stack =
@@ -581,11 +581,11 @@ instantiateAndUpdate expr updAddr heap env = case expr of
   ELam _vs _e           -> error "Can't instantiate lambda abstractions"
 
 instantiateConstrUpdate :: Addr -> Int -> Int -> TiHeap -> Assoc Name Addr -> TiHeap
-instantiateConstrUpdate updAddr tag arith heap env =
+instantiateConstrUpdate updAddr tag arith heap _env =
   hUpdate heap updAddr (NPrim "Constr" (primConstr tag arith))
 
 instantiateConstr :: Int -> Int -> TiHeap -> Assoc Name Addr -> (TiHeap, Addr)
-instantiateConstr tag arith heap env =
+instantiateConstr tag arith heap _env =
   hAlloc heap (NPrim "Constr" (primConstr tag arith))
 
 instantiateLetUpdate :: Addr
@@ -634,7 +634,7 @@ showResults states =
   --                   ])
 
 showState :: TiState -> IseqRep
-showState (output, stack, dump, heap, _globals, _stats)
+showState (_output, stack, dump, heap, _globals, _stats)
   | showHeapP =
     iConcat [ showHeap heap, iNewline ]
     `iAppend`
@@ -730,7 +730,7 @@ showFWAddr addr = iStr (space (4 - length str) ++ str)
     str = show addr
 
 showStats :: TiState -> IseqRep
-showStats (output, stack, _dump, _heap, _globals, stats) =
+showStats (_output, stack, _dump, _heap, _globals, stats) =
   iConcat [ iNewline, iNewline
           , iStr "Total number of steps = ", iNum (tiStatGetSteps stats), iNewline
           , iStr "Super combinator steps = ", iNum (scSteps stats), iNewline
