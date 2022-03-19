@@ -506,8 +506,9 @@ numStep :: TiState -> Int -> TiState
 -- numStep _state _n = error "Number applied as a function"
 numStep state _n =
   case state of
-    (output, _stack, s:dump, heap, globals, stats) -> (output, s, dump, heap, globals, stats)  -- (2.7)
-    (     _,      _,     [],     _,      _,     _) -> error $ "numStep: invalid state, dump is empty:\n" ++ showResults [state]
+    (output, stack, d0@(_:_), heap, globals, stats)
+      | let (s, dump) = restoreStack stack d0     -> (output, s, dump, heap, globals, stats)  -- (2.7)
+    (     _,     _,     [],     _,      _,     _) -> error $ "numStep: invalid state, dump is empty:\n" ++ showResults [state]
 
 apStep :: TiState -> Addr -> Addr -> TiState
 apStep state a1 a2 =
@@ -548,8 +549,9 @@ indStep state addr = case state of
 dataStep :: TiState -> Int -> [Addr] -> TiState
 dataStep state _tag _args =
   case state of
-    (output, _stack, s:dump, heap, globals, stats) -> (output, s, dump, heap, globals, stats)  -- (2.7)
-    (     _,      _,     [],     _,      _,     _) -> error $ "dataStep: invalid state, dump is empty:\n" ++ showResults [state]
+    (output, stack, d0@(_:_), heap, globals, stats)
+      | let (s, dump) = restoreStack stack d0     -> (output, s, dump, heap, globals, stats)  -- (2.7)
+    (     _,     _,     [],     _,      _,     _) -> error $ "dataStep: invalid state, dump is empty:\n" ++ showResults [state]
 
 getArgs :: TiHeap -> TiStack -> [Addr]
 getArgs heap stack =
