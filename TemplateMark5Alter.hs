@@ -77,6 +77,13 @@ type TiDump  = [TiStack]
 initialTiDump :: TiDump
 initialTiDump = []
 
+saveStackWithCont :: Addr -> TiStack -> TiDump -> (TiStack, TiDump)
+saveStackWithCont addr stack dump = (push addr stack, stack:dump)
+
+restoreStack :: TiStack -> TiDump -> (TiStack, TiDump)
+restoreStack _ (stack:dump) = (stack, dump)
+restoreStack _  []          = error "restoreStack: called with empty dump."
+
 type TiHeap  = Heap Node
 
 -- スーパーコンビネータ名と定義のリスト
