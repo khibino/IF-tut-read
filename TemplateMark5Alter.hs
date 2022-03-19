@@ -71,18 +71,17 @@ type TiOutput = [Int]
 
 type TiStack = Stack Addr
 
--- data TiDump  = DummyTiDump
-type TiDump  = [TiStack]
+type TiDump  = [Int]
 
 initialTiDump :: TiDump
 initialTiDump = []
 
 saveStackWithCont :: Addr -> TiStack -> TiDump -> (TiStack, TiDump)
-saveStackWithCont addr stack dump = (push addr stack, stack:dump)
+saveStackWithCont addr stack dump = (push addr stack, depth stack : dump)
 
 restoreStack :: TiStack -> TiDump -> (TiStack, TiDump)
-restoreStack _ (stack:dump) = (stack, dump)
-restoreStack _  []          = error "restoreStack: called with empty dump."
+restoreStack stack (dep:dump)  =  (discard (depth stack - dep) stack, dump)
+restoreStack _      []         =  error "restoreStack: called with empty dump."
 
 type TiHeap  = Heap Node
 
