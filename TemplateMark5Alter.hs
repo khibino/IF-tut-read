@@ -320,6 +320,16 @@ primDyadic op (output, stack, dump, heap, globals, stats) =
 
 primXXX (stack, dump, heap, globals, stats) =
   case getArgs heap stack of
+    as  ->  undefined
+    ---   -> error $ "primXXX: wrong count of arguments" ++ show as
+  where
+    arity = undefined
+    sr = discard arity stack
+    (ar, se) = pop sr
+
+{-
+primXXX (stack, dump, heap, globals, stats) =
+  case getArgs heap stack of
     as
       | null (list se)  ->  undefined
       | otherwise       ->  error $ "primXXX: invalid stack" ++ show (list stack)
@@ -328,6 +338,7 @@ primXXX (stack, dump, heap, globals, stats) =
     arity = undefined
     sr = discard arity stack
     (ar, se) = pop sr
+ -}
 
 primNeg :: TiState -> TiState
 primNeg _state@(output, stack, dump, heap, globals, stats) =
