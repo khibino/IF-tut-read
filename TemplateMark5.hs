@@ -543,7 +543,7 @@ primPrint (output, stack, dump, heap, globals, stats) =
   case getArgs heap stack of
     [b1, b2]
       | null (list se)  -> case hLookup heap b1 of
-          NNum _        ->  (output, push b2 se,  dump, heap , globals, stats)  -- 規則 (2.12)
+          NNum n        ->  (output ++ [n], push b2 se,  dump, heap , globals, stats)  -- 規則 (2.12)
           _             ->  (output, push b1 se, sr : dump, heap , globals, stats)   -- 規則 (2.13)
       | otherwise       ->  error $ "primPrint: invalid stack" ++ show (list stack)
     as  -> error $ "primXXX: wrong count of arguments" ++ show as
