@@ -546,6 +546,7 @@ primStop (output, stack, dump, heap, globals, stats) =
     (ar, se) = pop sr
 -- 規則 (2.11)
 
+-- exercise 2.26
 primPrint :: TiState -> TiState
 primPrint (output, stack, dump, heap, globals, stats) =
   case getArgs heap stack of
