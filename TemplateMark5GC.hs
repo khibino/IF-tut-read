@@ -97,10 +97,11 @@ data TiStats =
   { steps :: Int
   , scSteps :: Int
   , primSteps :: Int
+  , maxHeap :: Int
   }
 
 tiStatInitial :: TiStats
-tiStatInitial = TiStats 0 0 0
+tiStatInitial = TiStats 0 0 0 0
 
 tiStatIncSteps :: TiStats -> TiStats
 tiStatIncSteps s = s { steps = steps s + 1 }
@@ -110,6 +111,10 @@ tiStatGetSteps = steps
 tiStatIncScStep s = s { scSteps = scSteps s + 1 }
 
 tiStatIncPrimStep s = s { primSteps = primSteps s + 1 }
+
+tiStatSetMaxHeap sz s
+  | maxHeap s >= sz   = s
+  | otherwise         = s { maxHeap = sz }
 
 applyToStats :: (TiStats -> TiStats) -> TiState -> TiState
 applyToStats f (output, stack, dump, heap, scDefs, stats) =
