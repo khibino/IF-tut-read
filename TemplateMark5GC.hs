@@ -163,11 +163,12 @@ gc :: TiState -> TiState
 gc state@(output, stack, dump, heap, globals, stats)
   | hSize heap <= heapThreshold  =  state
   | otherwise                   =
-      (output, stack, dump, scanHeap h2, globals, stats)
+      (output, stack, dump, scanHeap h2, globals, stats2)
   where
     h2 = foldl markFrom heap $ findRoots state
     heapThreshold :: Int
     heapThreshold = 96
+    stats2 = tiStatSetMaxHeap (hSize heap) stats
 
 compile :: CoreProgram -> TiState
 compile program =
@@ -809,6 +810,7 @@ showStats (_output, stack, _dump, heap, _globals, stats) =
           , iStr "Super combinator steps = ", iNum (scSteps stats), iNewline
           , iStr "Primitive steps = ", iNum (primSteps stats), iNewline
           , iStr "Heap size = ", iNum (hSize heap), iNewline
+          , iStr "Max Heap size = ", iNum (maxHeap stats), iNewline
           , showStackMaxDepth stack ]
 
 showOutput :: TiState -> IseqRep
