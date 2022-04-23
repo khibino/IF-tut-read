@@ -76,6 +76,7 @@ type TiDump  = [Int]
 initialTiDump :: TiDump
 initialTiDump = []
 
+-- exercise 2.28
 saveStackWithCont :: Addr -> TiStack -> TiDump -> (TiStack, TiDump)
 saveStackWithCont addr stack dump = (push addr stack, depth stack : dump)
 
@@ -195,6 +196,7 @@ buildInitialHeap scDefs =
     (heap1, scAddrs)   = mapAccumL allocateSc hInitial scDefs
     (heap2, primAddrs) = mapAccumL allocatePrim heap1 primitives
 
+-- exercise 2.27
 primitives :: Assoc Name Primitive
 primitives = [ ("negate", primNeg)
              , ("+", primArith (+)),  ("-", primArith (-))
@@ -488,6 +490,7 @@ primStop (output, stack, dump, heap, globals, stats) =
     (_ar, se) = pop sr
 -- 規則 (2.11)
 
+-- exercise 2.26
 primPrint :: TiState -> TiState
 primPrint (output, stack, dump, heap, globals, stats) =
   case getArgs heap stack of
