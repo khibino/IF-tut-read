@@ -43,6 +43,9 @@ hNull = 0
 hIsnull :: Addr -> Bool
 hIsnull = (== 0)
 
+hAssoc :: Heap a -> Assoc Addr a
+hAssoc = allocs
+
 showaddr :: Addr -> String
 showaddr = ("#" ++) . shownum
 
