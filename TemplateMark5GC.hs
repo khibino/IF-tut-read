@@ -798,11 +798,12 @@ showFWAddr addr = iStr (space (4 - length str) ++ str)
     str = show addr
 
 showStats :: TiState -> IseqRep
-showStats (_output, stack, _dump, _heap, _globals, stats) =
+showStats (_output, stack, _dump, heap, _globals, stats) =
   iConcat [ iNewline, iNewline
           , iStr "Total number of steps = ", iNum (tiStatGetSteps stats), iNewline
           , iStr "Super combinator steps = ", iNum (scSteps stats), iNewline
           , iStr "Primitive steps = ", iNum (primSteps stats), iNewline
+          , iStr "Heap size = ", iNum (hSize heap), iNewline
           , showStackMaxDepth stack ]
 
 showOutput :: TiState -> IseqRep
