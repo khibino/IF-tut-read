@@ -171,7 +171,7 @@ gc state@(output, stack, dump, heap, globals, stats)
   where
     h2 = foldl markFrom heap $ findRoots state
     heapThreshold :: Int
-    heapThreshold = 96
+    heapThreshold = 50
     stats2 = tiStatSetLastMaxHeap (hSize heap) stats { numOfGC = numOfGC stats + 1 }
 
 compile :: CoreProgram -> TiState
@@ -762,13 +762,16 @@ showStackMaxDepth stack =
 
 showStkNode :: TiHeap -> Node -> IseqRep
 showStkNode heap n@(NAp funAddr argAddr) =
-  iConcat
+  iConcat $
   [ iStr "NAp ", showFWAddr funAddr
   , iStr " ", showFWAddr argAddr, iStr " ("
   , showNode (hLookup heap argAddr), iStr ")"
-  , iStr "  -- ", debugNestedAp heap n
-  ]
+  ] ++
+  if nestedDebug then [ iStr "  -- ", debugNestedAp heap n ] else []
 showStkNode _heap node = showNode node
+
+nestedDebug :: Bool
+nestedDebug = True
 
 debugNestedAp :: Heap Node -> Node -> IseqRep
 debugNestedAp heap = rec_ id
