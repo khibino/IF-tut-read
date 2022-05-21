@@ -112,7 +112,7 @@ tiStatIncScStep s = s { scSteps = scSteps s + 1 }
 
 tiStatIncPrimStep s = s { primSteps = primSteps s + 1 }
 
-tiStatSetMaxHeap sz s
+tiStatSetLastMaxHeap sz s
   | lastMaxHeap s >= sz   = s
   | otherwise             = s { lastMaxHeap = sz }
 
@@ -182,7 +182,7 @@ gc state@(output, stack, dump, heap, globals, stats)
     (h, g) = markFromGlobals h3 globals
     heapThreshold :: Int
     heapThreshold = 96
-    stats2 = tiStatSetMaxHeap (hSize heap) stats
+    stats2 = tiStatSetLastMaxHeap (hSize heap) stats
 
 compile :: CoreProgram -> TiState
 compile program =
