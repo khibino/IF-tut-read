@@ -866,8 +866,12 @@ testPrintScList = "main = cons 1 (cons 2 (cons 3 nil))"
 testPrintList2 = "main = Cons (1 + 2) (Cons 2 (Cons 3 Nil))"
 
 -- exercise 2.29
---   testPrintList   - 85 step
---   testPrintScList - 47 step
+--   case-pair
+--     normal        -  test testCasePair        - 60 step
+--     scott encoded -  test testScCasePair      - 31 step
+--   print-list
+--     normal        -  testList testPrintList   - 85 step
+--     scott encoded -  testList testPrintScList - 47 step
 -- ステップ数については大きな長所があるが、代数データ型ごとに畳み込み関数を生成しなければならないのは短所
 
 test :: String -> IO ()
