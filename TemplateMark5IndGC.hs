@@ -169,6 +169,7 @@ scanHeap heap = foldl f heap $ hAssoc heap
       NMarked node -> hUpdate h addr node
       _            -> hFree h addr
 
+-- exercise 2.31
 findRoots :: TiState -> [Addr]
 findRoots (_output, stack, dump, _heap, globals, _stats) =
   findStackRoots stack ++
