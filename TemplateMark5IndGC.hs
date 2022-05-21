@@ -145,6 +145,7 @@ markFromGlobals heap globals = (heap', globals')
     markFrom' h1 (name, a1) = (h2, (name, a2))
       where (h2, a2) = markFrom h1 a1
 
+-- exercise 2.32
 markFrom :: TiHeap -> Addr -> (TiHeap, Addr)
 markFrom heap addr = case node of
   NAp a1 a2             -> case markFrom heap a1 of
@@ -162,6 +163,7 @@ markFrom heap addr = case node of
     node = hLookup heap addr
     marked = (hUpdate heap addr $ NMarked node, addr)
 
+-- exercise 2.32
 scanHeap :: TiHeap -> TiHeap
 scanHeap heap = foldl f heap $ hAssoc heap
   where
