@@ -855,14 +855,13 @@ testFac = "fac n = if (n == 0) 1 (n * fac (n-1)) ;\
 
 testCasePair = "main = fst (snd (fst (MkPair (MkPair 1 (MkPair 2 3)) 4)))"
 
-testPair = "main = fst (snd (fst (pair (pair 1 (pair 2 3)) 4)))"
+testScCasePair = "main = fst (snd (fst (pair (pair 1 (pair 2 3)) 4)))"
 
 testLength = "main = length (Cons 1 (Cons 2 (Cons 3 Nil)))"
 
 testPrintList = "main = Cons 1 (Cons 2 (Cons 3 Nil))"
 
-testPrintCList = "main = cons 1 (cons 2 (cons 3 nil))"
-
+testPrintScList = "main = cons 1 (cons 2 (cons 3 nil))"
 
 testPrintList2 = "main = Cons (1 + 2) (Cons 2 (Cons 3 Nil))"
 
