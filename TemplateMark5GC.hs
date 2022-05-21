@@ -130,6 +130,7 @@ findDumpRoots _dump = []
 findGlobalRoots :: TiGlobals -> [Addr]
 findGlobalRoots = aRange
 
+-- exercise 2.32
 markFrom :: TiHeap -> Addr -> TiHeap
 markFrom heap addr = case node of
   NAp a1 a2             -> case markFrom (markFrom heap a1) a2 of
@@ -146,6 +147,7 @@ markFrom heap addr = case node of
     node = hLookup heap addr
     marked = hUpdate heap addr (NMarked node)
 
+-- exercise 2.32
 scanHeap :: TiHeap -> TiHeap
 scanHeap heap = foldl f heap $ hAssoc heap
   where
