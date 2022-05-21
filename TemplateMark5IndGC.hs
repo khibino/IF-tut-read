@@ -98,10 +98,11 @@ data TiStats =
   , scSteps :: Int
   , primSteps :: Int
   , lastMaxHeap :: Int
+  , numOfGC :: Int
   }
 
 tiStatInitial :: TiStats
-tiStatInitial = TiStats 0 0 0 0
+tiStatInitial = TiStats 0 0 0 0 0
 
 tiStatIncSteps :: TiStats -> TiStats
 tiStatIncSteps s = s { steps = steps s + 1 }
@@ -182,7 +183,7 @@ gc state@(output, stack, dump, heap, globals, stats)
     (h, g) = markFromGlobals h3 globals
     heapThreshold :: Int
     heapThreshold = 96
-    stats2 = tiStatSetLastMaxHeap (hSize heap) stats
+    stats2 = tiStatSetLastMaxHeap (hSize heap) stats { numOfGC = numOfGC stats + 1 }
 
 compile :: CoreProgram -> TiState
 compile program =
@@ -825,6 +826,7 @@ showStats (_output, stack, _dump, heap, _globals, stats) =
           , iStr "Primitive steps = ", iNum (primSteps stats), iNewline
           , iStr "Heap size = ", iNum (hSize heap), iNewline
           , iStr "Max heap size = ", iNum (hSize heap `max` lastMaxHeap stats), iStr " (last: ", iNum (lastMaxHeap stats), iStr ")", iNewline
+          , iStr "Number of GC = ", iNum (numOfGC stats), iNewline
           , showStackMaxDepth stack ]
 
 showOutput :: TiState -> IseqRep
