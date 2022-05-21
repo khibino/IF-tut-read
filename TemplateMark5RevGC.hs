@@ -193,6 +193,7 @@ scanHeap heap = foldl f heap $ hAssoc heap
       NMarked {}         -> error $ "scanHeap unknown state: " ++ show addr ++ ": " ++ show n
       _                  -> hFree h addr
 
+-- exercise 2.31
 findRoots :: TiState -> [Addr]
 findRoots (_output, stack, dump, _heap, globals, _stats) =
   findStackRoots stack ++
