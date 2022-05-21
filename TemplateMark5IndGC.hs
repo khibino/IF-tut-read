@@ -97,7 +97,7 @@ data TiStats =
   { steps :: Int
   , scSteps :: Int
   , primSteps :: Int
-  , maxHeap :: Int
+  , lastMaxHeap :: Int
   }
 
 tiStatInitial :: TiStats
@@ -113,8 +113,8 @@ tiStatIncScStep s = s { scSteps = scSteps s + 1 }
 tiStatIncPrimStep s = s { primSteps = primSteps s + 1 }
 
 tiStatSetMaxHeap sz s
-  | maxHeap s >= sz   = s
-  | otherwise         = s { maxHeap = sz }
+  | lastMaxHeap s >= sz   = s
+  | otherwise             = s { lastMaxHeap = sz }
 
 applyToStats :: (TiStats -> TiStats) -> TiState -> TiState
 applyToStats f (output, stack, dump, heap, scDefs, stats) =
@@ -824,7 +824,7 @@ showStats (_output, stack, _dump, heap, _globals, stats) =
           , iStr "Super combinator steps = ", iNum (scSteps stats), iNewline
           , iStr "Primitive steps = ", iNum (primSteps stats), iNewline
           , iStr "Heap size = ", iNum (hSize heap), iNewline
-          , iStr "Max Heap size = ", iNum (maxHeap stats), iNewline
+          , iStr "Max heap size = ", iNum (hSize heap `max` lastMaxHeap stats), iStr " (last: ", iNum (lastMaxHeap stats), iStr ")", iNewline
           , showStackMaxDepth stack ]
 
 showOutput :: TiState -> IseqRep
