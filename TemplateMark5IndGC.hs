@@ -145,6 +145,7 @@ markFromGlobals heap globals = (heap', globals')
     markFrom' h1 (name, a1) = (h2, (name, a2))
       where (h2, a2) = markFrom h1 a1
 
+-- exercise 2.33
 -- exercise 2.32
 markFrom :: TiHeap -> Addr -> (TiHeap, Addr)
 markFrom heap addr = case node of
