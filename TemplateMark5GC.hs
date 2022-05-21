@@ -162,7 +162,7 @@ findRoots (_output, stack, dump, _heap, globals, _stats) =
 gc :: TiState -> TiState
 gc state@(output, stack, dump, heap, globals, stats)
   | hSize heap <= heapThreshold  =  state
-  | otherwise                   =
+  | otherwise                    =
       (output, stack, dump, scanHeap h2, globals, stats2)
   where
     h2 = foldl markFrom heap $ findRoots state
@@ -810,7 +810,7 @@ showStats (_output, stack, _dump, heap, _globals, stats) =
           , iStr "Super combinator steps = ", iNum (scSteps stats), iNewline
           , iStr "Primitive steps = ", iNum (primSteps stats), iNewline
           , iStr "Heap size = ", iNum (hSize heap), iNewline
-          , iStr "Max Heap size = ", iNum (maxHeap stats), iNewline
+          , iStr "Max heap size = ", iNum (maxHeap stats), iNewline
           , showStackMaxDepth stack ]
 
 showOutput :: TiState -> IseqRep
@@ -864,6 +864,10 @@ testDouble2 =
 testDouble3 =
   "double x = x + x ;\n\
   \main = double (S K K 3)"
+
+testDouble4 =
+  "double x = x + x ;\n\
+  \main = double (double (S K K 3))"
 
 testNeg = "main = negate 3"
 testNeg2 = "main = negate (negate 3)"
