@@ -139,7 +139,11 @@ markFromDump :: TiHeap -> TiDump -> (TiHeap, TiDump)
 markFromDump = (,)
 
 markFromGlobals :: TiHeap -> TiGlobals -> (TiHeap, TiGlobals)
-markFromGlobals = (,)
+markFromGlobals heap globals = (heap', globals')
+  where
+    (heap', globals') = mapAccumL markFrom' heap $ globals
+    markFrom' h1 (name, a1) = (h2, (name, a2))
+      where (h2, a2) = markFrom h1 a1
 
 markFrom :: TiHeap -> Addr -> (TiHeap, Addr)
 markFrom heap addr = case node of
@@ -174,6 +178,7 @@ findRoots (_output, stack, dump, _heap, globals, _stats) =
 -- exercise 2.30
 gc :: TiState -> TiState
 gc state@(output, stack, dump, heap, globals, stats)
+  | steps stats `rem` 8 /= 0     =  state
   | hSize heap <= heapThreshold  =  state
   | otherwise                    =
       (output, stk, d, scanHeap h, g, stats2)
@@ -182,7 +187,7 @@ gc state@(output, stack, dump, heap, globals, stats)
     (h3, d) = markFromDump h2 dump
     (h, g) = markFromGlobals h3 globals
     heapThreshold :: Int
-    heapThreshold = 96
+    heapThreshold = 50
     stats2 = tiStatSetLastMaxHeap (hSize heap) stats { numOfGC = numOfGC stats + 1 }
 
 compile :: CoreProgram -> TiState
@@ -773,13 +778,16 @@ showStackMaxDepth stack =
 
 showStkNode :: TiHeap -> Node -> IseqRep
 showStkNode heap n@(NAp funAddr argAddr) =
-  iConcat
+  iConcat $
   [ iStr "NAp ", showFWAddr funAddr
   , iStr " ", showFWAddr argAddr, iStr " ("
   , showNode (hLookup heap argAddr), iStr ")"
-  , iStr "  -- ", debugNestedAp heap n
-  ]
+  ] ++
+  if nestedDebug then [ iStr "  -- ", debugNestedAp heap n ] else []
 showStkNode _heap node = showNode node
+
+nestedDebug :: Bool
+nestedDebug = True
 
 debugNestedAp :: Heap Node -> Node -> IseqRep
 debugNestedAp heap = rec_ id
@@ -884,6 +892,10 @@ testDouble3 =
 testDouble4 =
   "double x = x + x ;\n\
   \main = double (double (S K K 3))"
+
+testTak =
+  "tak x y z = if (y < x) (tak (tak (x-1) y z) (tak (y-1) z x) (tak (z-1) x y)) y ;\n\
+  \main = tak 2 1 0"
 
 testNeg = "main = negate 3"
 testNeg2 = "main = negate (negate 3)"
