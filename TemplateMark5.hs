@@ -872,6 +872,10 @@ testDouble3 =
   "double x = x + x ;\n\
   \main = double (S K K 3)"
 
+testDouble4 =
+  "double x = x + x ;\n\
+  \main = double (double (S K K 3))"
+
 testNeg = "main = negate 3"
 testNeg2 = "main = negate (negate 3)"
 
