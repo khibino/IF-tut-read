@@ -29,7 +29,12 @@ data Node
   | NInd Addr
   | NPrim Name Primitive
   | NData Int [Addr]
-  | NMarked Node
+  | NMarked MarkState Node
+  deriving (Eq, Show)
+
+data MarkState
+  = Done         -- Marking on this node finished
+  | Visits Int   -- node visited n times so far
   deriving (Eq, Show)
 
 {-
@@ -139,31 +144,54 @@ markFromDump :: TiHeap -> TiDump -> (TiHeap, TiDump)
 markFromDump = (,)
 
 markFromGlobals :: TiHeap -> TiGlobals -> (TiHeap, TiGlobals)
-markFromGlobals = (,)
+markFromGlobals heap globals = (heap', globals')
+  where
+    (heap', globals') = mapAccumL markFrom' heap $ globals
+    markFrom' h1 (name, a1) = (h2, (name, a2))
+      where (h2, a2) = markFrom h1 a1
+
+markStepMaybe :: (Addr, Addr, TiHeap) -> Maybe (Addr, Addr, TiHeap)
+markStepMaybe t = markStep t Nothing Just
+
+markStep :: (Addr, Addr, TiHeap) -> r -> ((Addr, Addr, TiHeap) -> r) -> r
+markStep (f, b, h) nothing just = case hLookup h f of
+  NMarked Done _n | b == hNull  ->  nothing
+
+  -- unmarked
+  NAp a1 a2        ->  just (a1, f, hUpdate h f (NMarked (Visits 1) (NAp b a2)))
+  n@NPrim {}       ->  just ( f, b, hUpdate h f (NMarked  Done       n))
+  n@NSupercomb {}  ->  just ( f, b, hUpdate h f (NMarked  Done       n))
+  n@NNum {}        ->  just ( f, b, hUpdate h f (NMarked  Done       n))
+
+  -- marked
+  NMarked Done _n  -> case hLookup h b of
+    NMarked (Visits 1) (NAp b' a2) -> just (a2, b , hUpdate h b (NMarked (Visits 2) (NAp f b')))
+    NMarked (Visits 2) (NAp a1 b') -> just ( b, b', hUpdate h b (NMarked  Done      (NAp a1 f)))
+    bn  ->  error $ "marked foreward node. unknown backward state: " ++ show bn
+
+  -- indirection
+  NInd a  ->  just (a, b, h)
+
+  -- exercise 2.34.
+  NData tag as  ->  case mapAccumL markFrom h as of
+    (h', as')      -> just (f, b, hUpdate h' f $ NMarked Done $ NData tag as')
+
+  fn  ->  error $ "unknown foreward state: " ++ show fn
 
 markFrom :: TiHeap -> Addr -> (TiHeap, Addr)
-markFrom heap addr = case node of
-  NAp a1 a2             -> case markFrom heap a1 of
-    (h1, a1')             -> case markFrom h1 a2 of
-      (h2, a2')             -> (hUpdate h2 addr $ NMarked $ NAp a1' a2', addr)
-  NSupercomb _ _ _      -> marked
-  NNum _                -> marked
-  NInd a                -> case markFrom heap a of
-    (h, a')               -> (h, a')
-  NPrim _ _             -> marked
-  NData tag as          -> case mapAccumL markFrom heap as of
-    (h, as')              -> (hUpdate h addr $ NMarked $ NData tag as', addr)
-  NMarked _             -> (heap, addr)
+markFrom heap addr = (h', f')
   where
-    node = hLookup heap addr
-    marked = (hUpdate heap addr $ NMarked node, addr)
+    (f', _b', h') = markSteps (addr, hNull, heap)
+    markSteps fbh@(_,_,_) = markStep fbh fbh markSteps
+    -- markSteps fbh@(_,_,_) = maybe fbh markSteps $ markStepMaybe fbh
 
 scanHeap :: TiHeap -> TiHeap
 scanHeap heap = foldl f heap $ hAssoc heap
   where
     f h (addr, n) = case n of
-      NMarked node -> hUpdate h addr node
-      _            -> hFree h addr
+      NMarked Done node  -> hUpdate h addr node
+      NMarked {}         -> error $ "scanHeap unknown state: " ++ show addr ++ ": " ++ show n
+      _                  -> hFree h addr
 
 findRoots :: TiState -> [Addr]
 findRoots (_output, stack, dump, _heap, globals, _stats) =
@@ -174,6 +202,7 @@ findRoots (_output, stack, dump, _heap, globals, _stats) =
 -- exercise 2.30
 gc :: TiState -> TiState
 gc state@(output, stack, dump, heap, globals, stats)
+  | steps stats `rem` 8 /= 0     =  state
   | hSize heap <= heapThreshold  =  state
   | otherwise                    =
       (output, stk, d, scanHeap h, g, stats2)
@@ -182,7 +211,7 @@ gc state@(output, stack, dump, heap, globals, stats)
     (h3, d) = markFromDump h2 dump
     (h, g) = markFromGlobals h3 globals
     heapThreshold :: Int
-    heapThreshold = 96
+    heapThreshold = 50
     stats2 = tiStatSetLastMaxHeap (hSize heap) stats { numOfGC = numOfGC stats + 1 }
 
 compile :: CoreProgram -> TiState
@@ -773,13 +802,16 @@ showStackMaxDepth stack =
 
 showStkNode :: TiHeap -> Node -> IseqRep
 showStkNode heap n@(NAp funAddr argAddr) =
-  iConcat
+  iConcat $
   [ iStr "NAp ", showFWAddr funAddr
   , iStr " ", showFWAddr argAddr, iStr " ("
   , showNode (hLookup heap argAddr), iStr ")"
-  , iStr "  -- ", debugNestedAp heap n
-  ]
+  ] ++
+  if nestedDebug then [ iStr "  -- ", debugNestedAp heap n ] else []
 showStkNode _heap node = showNode node
+
+nestedDebug :: Bool
+nestedDebug = True
 
 debugNestedAp :: Heap Node -> Node -> IseqRep
 debugNestedAp heap = rec_ id
@@ -884,6 +916,10 @@ testDouble3 =
 testDouble4 =
   "double x = x + x ;\n\
   \main = double (double (S K K 3))"
+
+testTak =
+  "tak x y z = if (y < x) (tak (tak (x-1) y z) (tak (y-1) z x) (tak (z-1) x y)) y ;\n\
+  \main = tak 2 1 0"
 
 testNeg = "main = negate 3"
 testNeg2 = "main = negate (negate 3)"
