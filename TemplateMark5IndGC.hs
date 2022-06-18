@@ -99,10 +99,11 @@ data TiStats =
   , primSteps :: Int
   , lastMaxHeap :: Int
   , numOfGC :: Int
+  , debugNested :: Bool
   }
 
 tiStatInitial :: TiStats
-tiStatInitial = TiStats 0 0 0 0 0
+tiStatInitial = TiStats 0 0 0 0 0 True
 
 tiStatIncSteps :: TiStats -> TiStats
 tiStatIncSteps s = s { steps = steps s + 1 }
@@ -116,6 +117,8 @@ tiStatIncPrimStep s = s { primSteps = primSteps s + 1 }
 tiStatSetLastMaxHeap sz s
   | lastMaxHeap s >= sz   = s
   | otherwise             = s { lastMaxHeap = sz }
+
+tiStatSetDebugNested b s = s { debugNested = b }
 
 applyToStats :: (TiStats -> TiStats) -> TiState -> TiState
 applyToStats f (output, stack, dump, heap, scDefs, stats) =
@@ -732,7 +735,7 @@ showResults states =
   --                   ])
 
 showState :: TiState -> IseqRep
-showState (_output, stack, dump, heap, _globals, _stats)
+showState (_output, stack, dump, heap, _globals, stats)
   | showHeapP =
     iConcat [ showHeap heap, iNewline ]
     `iAppend`
@@ -744,7 +747,7 @@ showState (_output, stack, dump, heap, _globals, _stats)
 -- exercise 2.5
     iseqState =
       iConcat
-      [ showStack heap stack, iNewline
+      [ showStack (debugNested stats) heap stack, iNewline
       , iStr "Dump depth: ", iStr $ show (length dump), iNewline
       ]
 
@@ -762,8 +765,8 @@ showHeap heap = case heap of
               , showNode node
               ]
 
-showStack :: TiHeap -> TiStack -> IseqRep
-showStack heap stack =
+showStack :: Bool -> TiHeap -> TiStack -> IseqRep
+showStack nestedDebug heap stack =
     iConcat
     [ iStr "Stack ["
     , iIndent (iInterleave iNewline (map showStackItem $ list stack))
@@ -773,25 +776,22 @@ showStack heap stack =
     showStackItem addr =
       iConcat
       [ showFWAddr addr,  iStr ": "
-      , showStkNode heap (hLookup heap addr)
+      , showStkNode nestedDebug heap (hLookup heap addr)
       ]
 
 showStackMaxDepth :: TiStack -> IseqRep
 showStackMaxDepth stack =
   iConcat [ iStr "Max stack depth = ", iNum (maxDepth stack) ]
 
-showStkNode :: TiHeap -> Node -> IseqRep
-showStkNode heap n@(NAp funAddr argAddr) =
+showStkNode :: Bool -> TiHeap -> Node -> IseqRep
+showStkNode nestedDebug heap n@(NAp funAddr argAddr) =
   iConcat $
   [ iStr "NAp ", showFWAddr funAddr
   , iStr " ", showFWAddr argAddr, iStr " ("
   , showNode (hLookup heap argAddr), iStr ")"
   ] ++
   if nestedDebug then [ iStr "  -- ", debugNestedAp heap n ] else []
-showStkNode _heap node = showNode node
-
-nestedDebug :: Bool
-nestedDebug = True
+showStkNode _  _heap node = showNode node
 
 debugNestedAp :: Heap Node -> Node -> IseqRep
 debugNestedAp heap = rec_ id
@@ -931,9 +931,15 @@ testPrintList = "main = Cons 1 (Cons 2 (Cons 3 Nil))"
 
 testPrintList2 = "main = Cons (1 + 2) (Cons 2 (Cons 3 Nil))"
 
+test_ :: Bool -> String -> IO ()
+test_ nestedDebug = putStrLn . showResults . eval . setDebug . compile . parse
+  where setDebug = applyToStats (tiStatSetDebugNested nestedDebug)
+
 test :: String -> IO ()
-test = putStrLn . showResults . eval . compile . parse
--- test = putStrLn . iDisplay . showState . head . eval . compile . parse
+test = test_ True
+
+qtest :: String -> IO ()
+qtest = test_ False
 
 testList :: String -> IO ()
 testList = putStrLn . showResults . evalList . compileList . parse
