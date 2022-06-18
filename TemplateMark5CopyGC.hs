@@ -168,7 +168,7 @@ evacuateFrom heap toHeap addr = case node of
   NSupercomb _ _ _             ->  copied
   NNum _                       ->  copied
   NInd a                     -> case evacuateFrom heap toHeap a of
-    (hs, a')                   ->  (hs, a')
+    ((h1, th1), a')            ->  ((hUpdate h1 addr $ NForward a', th1), a')
   NPrim _ _                    ->  copied
   NData _tag as              -> case mapAccumL (uncurry evacuateFrom) (h1, th1) as of
     ((heap', toHeap'), _)      ->  ((heap', toHeap'), a')
@@ -191,7 +191,7 @@ scavengeHeap heap toHeap = foldl (uncurry . hUpdate) toHeap updates
       _             ->  node
     lookupNF addr = case hLookup heap addr of
       NForward a' -> a'
-      _           -> error "not NForward!"
+      node        -> error $ "not NForward: "  ++ show (addr, node)
 
 gc :: TiState -> TiState
 gc state@(output, stack, dump, heap, globals, stats)
