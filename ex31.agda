@@ -19,12 +19,12 @@ open import Relation.Binary.PropositionalEquality.Core using (_≡_; refl)
 Int = ℤ
 
 data AExpr : Set where
-  Nat : Int -> AExpr
+  Num  : Int -> AExpr
   Plus : AExpr -> AExpr -> AExpr
   Mult : AExpr -> AExpr -> AExpr
 
 aInterpret : AExpr -> Int
-aInterpret (Nat n) = n
+aInterpret (Num n) = n
 aInterpret (Plus e₁ e₂) = aInterpret e₁ + aInterpret e₂
 aInterpret (Mult e₁ e₂) = aInterpret e₁ * aInterpret e₂
 
@@ -56,7 +56,7 @@ aEval (IMult  ∷ is)  (x ∷ [])       =  IMult ∷ is , x ∷ []
 aEval (IMult  ∷ is)  (n₀ ∷ n₁ ∷ s)  =  aEval is (n₀ * n₁ ∷ s)
 
 aCompile : AExpr -> List AInstruction
-aCompile (Nat n) = INum n ∷ []
+aCompile (Num n) = INum n ∷ []
 aCompile (Plus e₁ e₂) = aCompile e₁ ++ aCompile e₂ ++ [ IPlus ]
 aCompile (Mult e₁ e₂) = aCompile e₁ ++ aCompile e₂ ++ [ IMult ]
 
@@ -77,7 +77,7 @@ evalTrans {n₀ ∷ n₁ ∷ s0} {s1} {s2} (IPlus  ∷ xs) ys ax ay = evalTrans 
 evalTrans {n₀ ∷ n₁ ∷ s0} {s1} {s2} (IMult  ∷ xs) ys ax ay = evalTrans {n₀ * n₁ ∷ s0} {s1} {s2} xs ys ax ay
 
 validEvalCompile : ∀ (s : List Int) (e : AExpr) -> aEval (aCompile e) s ≡ ([] , aInterpret e ∷ s)
-validEvalCompile s (Nat n)       =  refl
+validEvalCompile s (Num n)       =  refl
 validEvalCompile s (Plus e₁ e₂)  =
   evalTrans
   (aCompile e₁) (aCompile e₂ ++ [ IPlus ])
