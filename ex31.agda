@@ -86,7 +86,7 @@ validEvalCompile s (Plus e₁ e₂)  =
         e₂+  = evalTrans
                (aCompile e₂) [ IPlus ]
                (validEvalCompile (aInterpret e₁ ∷ s) e₂) eq+
-          where eq+ : aEval (IPlus ∷ []) (aInterpret e₂ ∷ aInterpret e₁ ∷ s) ≡ ([] , aInterpret e₁ + aInterpret e₂ ∷ s)
+          where eq+ : aEval [ IPlus ] (aInterpret e₂ ∷ aInterpret e₁ ∷ s) ≡ ([] , aInterpret e₁ + aInterpret e₂ ∷ s)
                 eq+ rewrite +-comm (aInterpret e₁) (aInterpret e₂) = refl
 validEvalCompile s (Mult e₁ e₂)  =
   evalTrans
@@ -96,7 +96,7 @@ validEvalCompile s (Mult e₁ e₂)  =
         e₂*  = evalTrans
                (aCompile e₂) [ IMult ]
                (validEvalCompile (aInterpret e₁ ∷ s) e₂) eq*
-          where eq* : aEval (IMult ∷ []) (aInterpret e₂ ∷ aInterpret e₁ ∷ s) ≡ ([] , aInterpret e₁ * aInterpret e₂ ∷ s)
+          where eq* : aEval [ IMult ] (aInterpret e₂ ∷ aInterpret e₁ ∷ s) ≡ ([] , aInterpret e₁ * aInterpret e₂ ∷ s)
                 eq* rewrite *-comm (aInterpret e₁) (aInterpret e₂) = refl
 
 validEvalCompile₀ : ∀ (e : AExpr) -> aEval (aCompile e) [] ≡ ([] , [ aInterpret e ])
