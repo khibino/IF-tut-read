@@ -318,8 +318,11 @@ showResults states =
   ++
   (iLaynList $ map showState states)
   ++
-  [ showState (last states) ]
-  where (s:ss) = states
+  [ showState lastState ]
+  ++
+  [ iNewline, showStats lastState ]
+  where (s:_ss) = states
+        lastState = last states
 
 showSC :: GmState -> (Name, Addr) -> IseqRep
 showSC s (name, addr) =
