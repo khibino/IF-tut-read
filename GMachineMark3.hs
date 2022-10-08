@@ -219,10 +219,11 @@ unwind state =
         newState (NGlobal n c)
           | depth as < n   =  error "Unwinding with too few arguments"
           | otherwise      =  putCode c $ putStack rstack state
-          where rstack = rearrange n (getHeap state) $ getStack state
+          where rstack = rearrange n (getHeap state) $ getStack state  {- exercise 3.12 -}
         newState (NInd a1) =  putCode [Unwind] (putStack (a1<:>as) state)
         -- newState  n        =  error $ "unwind.newState: unknown node: " ++ show n
 
+-- exercise 3.12
 rearrange :: Int -> GmHeap -> GmStack -> GmStack
 rearrange n heap as = foldr stkPush (discard n as) $ take n as'
   where
