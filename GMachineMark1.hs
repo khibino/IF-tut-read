@@ -21,8 +21,8 @@ stkPush :: a -> Stack a -> Stack a
 stkPush x Stack { list = xs, depth = d, maxDepth = maxd } =
   Stack { list = x:xs, depth = d+1, maxDepth = max (d + 1) maxd }
 
-pop :: Stack a -> (a, Stack a)
-pop s@Stack { list = xs, depth = d } =
+stkPop :: Stack a -> (a, Stack a)
+stkPop s@Stack { list = xs, depth = d } =
   (head xs, s { list = tail xs, depth = d - 1})
 
 discard :: Int -> Stack a -> Stack a
@@ -170,8 +170,8 @@ mkap :: GmState -> GmState
 mkap state =
   putHeap heap' (putStack (a <:> as') state)
   where (heap', a) = hAlloc (getHeap state) (NAp a1 a2)
-        (a1, as1) = pop $ getStack state
-        (a2, as') = pop as1
+        (a1, as1) = stkPop $ getStack state
+        (a2, as') = stkPop as1
         -- (a1:a2:as') = list $ getStack state
 
 push :: Int -> GmState -> GmState
@@ -187,12 +187,12 @@ getArg  n          = error $ "getArg: not NAp node: " ++ show n
 slide :: Int -> GmState -> GmState
 slide n state =
   putStack (a <:> discard n as) state
-  where (a, as) = pop $ getStack state
+  where (a, as) = stkPop $ getStack state
 
 unwind :: GmState -> GmState
 unwind state =
   newState (hLookup heap a)
-  where (a, as) = pop $ getStack state
+  where (a, as) = stkPop $ getStack state
         heap    = getHeap state
 
         newState (NNum _n) = state
@@ -562,7 +562,7 @@ check expect prog
     -- (   _, lastStack, _, lHeap, _, _) = last states
     lastStack = undefined
     lHeap = undefined
-    (a, _) = pop lastStack
+    (a, _) = stkPop lastStack
     lastv = hLookup lHeap a :: Node
 
     showProg word =
