@@ -95,16 +95,20 @@ putGlobals :: GmGlobals -> GmState -> GmState
 putGlobals globals' (i, stack, heap, globals, stats) =
   (i, stack, heap, globals', stats)
 
-type GmStats = Int
+data GmStats =
+  GmStats
+  { steps :: Int
+  , lastMaxHeap :: Int
+  }
 
 statInitial :: GmStats
-statInitial = 0
+statInitial = GmStats { steps = 0, lastMaxHeap = 0 }
 
 statIncSteps :: GmStats -> GmStats
-statIncSteps s = s + 1
+statIncSteps s = s { steps = steps s + 1 }
 
 statGetSteps :: GmStats -> Int
-statGetSteps s = s
+statGetSteps = steps
 
 getStats :: GmState -> GmStats
 getStats (i, stack, heap, globals, stats) = stats
@@ -432,7 +436,14 @@ showFWAddr addr = iStr (space (4 - length str) ++ str)
     str = show addr
 
 showStats :: GmState -> IseqRep
-showStats s = iConcat [ iStr "Steps taken = ", iNum (statGetSteps $ getStats s) ]
+showStats s =
+  iConcat
+  [ iStr "Steps taken = ", iNum (statGetSteps stats), iNewline
+  , iStr "Max heap size = ", iNum (hSize heap `max` lastMaxHeap stats)
+  , iStr " (last: ", iNum (lastMaxHeap stats), iStr ")" ]
+  where
+    heap = getHeap s
+    stats = getStats s
 
 showOutput :: GmState -> IseqRep
 showOutput = undefined
