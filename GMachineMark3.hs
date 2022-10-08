@@ -574,6 +574,16 @@ testPrintList = "main = Cons 1 (Cons 2 (Cons 3 Nil))"
 
 testPrintList2 = "main = Cons (1 + 2) (Cons 2 (Cons 3 Nil))"
 
+testB11A = "main = I 3"
+
+testB11B = "id = S K K ;\
+           \main =id 3"
+
+testB11C = "id = S K K ;\
+           \main = twice twice twice id 3"
+
+testB12 = "main = twice (I I I) 3"
+
 test_ :: Bool -> String -> IO ()
 test_ nestedDebug = putStrLn . showResults . eval . compile . parse
 -- test_ nestedDebug = putStrLn . showResults . eval . setDebug . compile . parse
