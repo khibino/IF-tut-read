@@ -434,6 +434,9 @@ testProg0 = "main = S K K 3"
 testProg1 = "main = S K K" -- wrong not saturated
 testProg2 = "id = S K K;\n\
             \main = twice twice twice id 3"
+testProg2a = "id = S K K;\n\
+             \twic f x = f (f x);\n\
+             \main = twic twic twic id 3"
 testProg3 = "pair x y f = f x y ;\n\
             \fst p = p K ;\n\
             \snd p = p K1 ;\n\
@@ -563,7 +566,6 @@ checkList = []
   , (NNum    3, "main = S K K 3") -- supercombinator
   , (NNum    3, "id = S K K;\n\
                 \main = twice twice twice id 3") -- supercombinator nested
-
   , (NNum (-3), "main = negate 3") -- negate
   , (NNum    3, "main = negate (negate 3)") -- negate nested
   , (NNum    3, "main = 1 + 2")  -- plus
