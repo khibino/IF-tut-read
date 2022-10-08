@@ -153,8 +153,14 @@ pushglobal f state =
 
 pushint :: Int -> GmState -> GmState
 pushint n state =
-  putHeap heap' (putStack (a <:> getStack state) state)
-  where (heap', a) = hAlloc (getHeap state) (NNum n)
+  putGlobals g (putHeap heap' (putStack (a <:> getStack state) state))
+  where --- (heap', a) = hAlloc (getHeap state) (NNum n)
+        -- exercise 3.6
+        ((heap', a), g) = case aLookup globals name (-1) of
+                          a' | a' < 0     ->  (hAlloc (getHeap state) (NNum n), (name, a') : globals)
+                             | otherwise  ->  ((getHeap state, a'), globals)
+        name = show n
+        globals = getGlobals state
 
 mkap :: GmState -> GmState
 mkap state =
