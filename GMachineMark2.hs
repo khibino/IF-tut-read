@@ -154,6 +154,7 @@ dispatch = d
     d (Update i)     = update i
     d (Pop i)        = pop i
     d  Unwind        = unwind
+    -- exercise 3.9
 
 pushglobal :: Name -> GmState -> GmState
 pushglobal f state =
@@ -452,6 +453,7 @@ showNode s a node   = case node of
                    [ iStr "Ap ", showAddr a1
                    , iStr " ",   showAddr a2 ]
   NInd a1      ->  iConcat [iStr "NInd ", showAddr a1]
+  -- exercise 3.8
 
 showAddr :: Addr -> IseqRep
 showAddr addr = iStr (show addr)
