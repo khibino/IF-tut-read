@@ -25,8 +25,13 @@ stkPop :: Stack a -> (a, Stack a)
 stkPop s@Stack { list = xs, depth = d } =
   (head xs, s { list = tail xs, depth = d - 1})
 
+stkPopN :: Int -> Stack a -> ([a], Stack a)
+stkPopN n s@(Stack { list = xs, depth = d }) = (hd, s { list = tl, depth = max (d - n) 0 })
+  where (hd, tl) = splitAt n xs
+
 discard :: Int -> Stack a -> Stack a
-discard n s@(Stack { list = xs, depth = d }) = s { list = drop n xs, depth = max (d - n) 0 }
+discard n s = snd $ stkPopN n s
+-- discard n s@(Stack { list = xs, depth = d }) = s { list = drop n xs, depth = max (d - n) 0 }
 
 (<:>) :: a -> Stack a -> Stack a
 (<:>) = stkPush
