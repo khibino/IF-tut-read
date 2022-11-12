@@ -59,6 +59,7 @@ data Instruction
   | Push Int
   | Mkap
   | Slide Int
+  | Alloc Int  {- exercise 3.14 -}
   | Update Int
   | Pop Int
   deriving (Eq, Show)
@@ -381,6 +382,7 @@ showInstruction (Push n)        =  iStr "Push " `iAppend` iNum n
 showInstruction (Pushint n)     =  iStr "Pushint " `iAppend` iNum n
 showInstruction  Mkap           =  iStr "Mkap"
 showInstruction (Slide n)       =  iStr "Slide " `iAppend` iNum n
+showInstruction (Alloc n)       =  iStr "Alloc " `iAppend` iNum n  {- exercise 3.14 -}
 showInstruction (Update n)      =  iStr "Update " `iAppend` iNum n
 showInstruction (Pop n)         =  iStr "Pop " `iAppend` iNum n
 -- exersise 3.7.
