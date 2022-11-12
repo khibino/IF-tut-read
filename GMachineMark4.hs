@@ -69,6 +69,10 @@ data Instruction
   | Alloc Int  {- exercise 3.14 -}
   | Update Int
   | Pop Int
+  | Eval
+  | Add | Sub | Mul | Div | Neg
+  | Eq | Ne | Lt | Le | Gt | Ge
+  | Cond GmCode GmCode
   deriving (Eq, Show)
 
 type GmStack = Stack Addr
