@@ -1,3 +1,4 @@
+{-# LANGUAGE NPlusKPatterns #-}
 module GMachineMark3 where
 
 import Language
@@ -157,6 +158,7 @@ dispatch = d
     d  Mkap          = mkap
     d (Push i)       = push i
     d (Slide i)      = slide i
+    d (Alloc i)      = alloc i
     d (Update i)     = update i
     d (Pop i)        = pop i
     d  Unwind        = unwind
@@ -208,6 +210,20 @@ update n state = putStack stk1 $ putHeap heap' state
     (ea, stk1) = stkPop $ getStack state
     na = list stk1 !! n
     heap' = hUpdate (getHeap state) na (NInd ea)
+
+alloc :: Int -> GmState -> GmState
+alloc n state = putHeap h1 $ putStack s1 state
+  where
+    (h1, as) = allocNodes n $ getHeap state
+    s1 = foldr stkPush (getStack state) as
+
+allocNodes :: Int -> GmHeap -> (GmHeap, [Addr])
+allocNodes 0     heap = (heap, [])
+allocNodes (n+1) heap = (heap2, a:as)
+  where
+    (heap1, as) = allocNodes n heap
+    (heap2, a)  = hAlloc heap1 (NInd hNull)
+allocNodes x     _    = error $ "allocNodes: negative passed: "  ++ show x
 
 pop :: Int -> GmState -> GmState
 pop n state = putStack stkn state
