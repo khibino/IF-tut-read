@@ -576,6 +576,7 @@ testPrintList = "main = Cons 1 (Cons 2 (Cons 3 Nil))"
 
 testPrintList2 = "main = Cons (1 + 2) (Cons 2 (Cons 3 Nil))"
 
+-- exercise 3.13
 testB11A = "main = I 3"
 
 testB11B = "id = S K K ;\
