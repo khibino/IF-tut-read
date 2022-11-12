@@ -453,8 +453,14 @@ showInstruction (Slide n)       =  iStr "Slide " `iAppend` iNum n
 showInstruction (Alloc n)       =  iStr "Alloc " `iAppend` iNum n  {- exercise 3.14 -}
 showInstruction (Update n)      =  iStr "Update " `iAppend` iNum n
 showInstruction (Pop n)         =  iStr "Pop " `iAppend` iNum n
--- exersise 3.7.
-
+showInstruction (Cond xs ys)    =  iStr "Code " `iAppend` iCodes xs `iAppend` iCodes ys
+  where iCodes cs = case cs of
+          []    ->  iStr "[]"
+          x:_   ->  iConcat [iStr "[", showInstruction x, iStr " ... ]"]
+showInstruction  ins
+  | ins `elem` [ Eval, Add, Sub, Mul, Div, Neg
+               , Eq, Ne, Lt, Le, Gt, Ge]  =  iStr $ show ins
+  | otherwise                             =  error $ "showInstruction: unknown instruction: " ++ show ins
 showState :: GmState -> IseqRep
 showState s =
   iConcat
