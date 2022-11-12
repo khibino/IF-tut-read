@@ -319,8 +319,18 @@ compileArgs defs env =
   zip (map fst defs) [n-1, n-2 .. 0] ++ argOffset n env
   where n = length defs
 
+-- exercise 3.16
 compileLetrec :: GmCompiler -> [(Name, CoreExpr)] -> GmCompiler
-compileLetrec = undefined
+compileLetrec  comp defs expr env =
+  [Alloc n] ++ compileLetrec' defs env' ++ comp expr env' ++ [Slide n]
+  where
+    env' = compileArgs defs env
+    n = length defs
+
+compileLetrec' :: [(Name, CoreExpr)] -> GmEnvironment -> GmCode
+compileLetrec' []                   env = []
+compileLetrec' ((_name, expr):defs) env =
+  compileC expr env ++ [Update (length defs)] ++ compileLetrec' defs env
 
 argOffset :: Int -> GmEnvironment -> GmEnvironment
 argOffset n env = [(v, n+m) | (v,m) <- env]
@@ -617,6 +627,8 @@ testLength = "main = length (Cons 1 (Cons 2 (Cons 3 Nil)))"
 testPrintList = "main = Cons 1 (Cons 2 (Cons 3 Nil))"
 
 testPrintList2 = "main = Cons (1 + 2) (Cons 2 (Cons 3 Nil))"
+
+testY = "Y f = letrec x = f x in x"
 
 -- exercise 3.13
 testB11A = "main = I 3"
