@@ -211,6 +211,7 @@ update n state = putStack stk1 $ putHeap heap' state
     na = list stk1 !! n
     heap' = hUpdate (getHeap state) na (NInd ea)
 
+-- exercise 3.15
 alloc :: Int -> GmState -> GmState
 alloc n state = putHeap h1 $ putStack s1 state
   where
