@@ -378,6 +378,7 @@ allocateSc heap (name, nargs, instns) =
 
 initialCode :: GmCode
 initialCode = [Pushglobal "main", Eval]
+-- initialCode = [Pushglobal "main", Unwind]
 
 compileSc :: (Name, [Name], CoreExpr) -> GmCompiledSC
 compileSc (name, env, body) =
@@ -799,6 +800,19 @@ testB11C = "id = S K K ;\
            \main = twice twice twice id 3"
 
 testB12 = "main = twice (I I I) 3"
+
+testB32fac = "fac n = if (n==0) 1 (n * fac (n-1)) ;\
+             \main = fac 5"
+
+testB32gcd = "gcd a b = if (a==b) \
+             \             a \
+             \          if (a<b) (gcd b a) (gcd b (a-b)) ;\
+             \main = gcd 6 10"
+
+testB32nfib = "nfib n = if (n==0) \
+              \            1 \
+              \         if (n==1) 1 (nfib (n-1) + nfib (n-2)) ;\
+              \main = nfib 4"
 
 test_ :: Bool -> String -> IO ()
 test_ nestedDebug = putStrLn . showResults . eval . compile . parse
