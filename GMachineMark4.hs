@@ -190,9 +190,14 @@ dispatch = d
     d Div            =  arithmetic2 div
     d Neg            =  arithmetic1 negate
 
-    -- Eq Ne
-    -- Lt Le Gt Ge
-    -- Cond
+    d Eq             =  comparison (==)
+    d Ne             =  comparison (/=)
+    d Lt             =  comparison (<)
+    d Le             =  comparison (<=)
+    d Gt             =  comparison (>)
+    d Ge             =  comparison (>=)
+
+    -- d Cond c1 c2     =  cond c1 c2
 
 pushglobal :: Name -> GmState -> GmState
 pushglobal f state =
@@ -310,7 +315,7 @@ primitive2 :: (b -> GmState -> GmState)  -- boxing function
            -> (a -> a -> b)              -- operator
            -> (GmState -> GmState)       -- state transition
 primitive2 box unbox op state =
-  box (op (unbox a0 state) (unbox a1 state)) (putStack as state)
+  box (op (unbox a0 state) (unbox a1 state)) (putStack as state)  {- rule 3.26 -}
   where (a0, (a1, as)) = stkPop <$> stkPop (getStack state)
 
 boxInteger :: Int -> GmState -> GmState
@@ -331,6 +336,16 @@ arithmetic1 = primitive1 boxInteger unboxInteger
 arithmetic2 :: (Int -> Int -> Int)    -- arithmetic operator
             -> (GmState -> GmState)   -- state transition
 arithmetic2  = primitive2 boxInteger unboxInteger
+
+boxBoolean :: Bool -> GmState -> GmState
+boxBoolean b state =
+  putStack (stkPush a $ getStack state) (putHeap h' state)
+  where (h', a) = hAlloc (getHeap state) (NNum b')
+        b' | b         = 1
+           | otherwise = 0
+
+comparison :: (Int -> Int -> Bool) -> GmState -> GmState
+comparison = primitive2 boxBoolean unboxInteger
 
 ---
 
