@@ -380,6 +380,11 @@ initialCode :: GmCode
 initialCode = [Pushglobal "main", Eval]
 -- initialCode = [Pushglobal "main", Unwind]
 
+{- exercise 3.24
+rule 3.23 からすると、 (空命令列, 空スタック) が dump に積まれるかどうかが異なる.
+
+ -}
+
 compileSc :: (Name, [Name], CoreExpr) -> GmCompiledSC
 compileSc (name, env, body) =
   (name, length env, compileR body $ zip env [0..])
@@ -446,7 +451,7 @@ compiledPrimitives =
   , op2 "-" Sub
   , op2 "*" Mul
   , op2 "/" Div
-  , ("negate", 1, [Push 1, Eval, Push 1, Eval, Neg, Update 2, Pop 2, Unwind])
+  , ("negate", 1, [Push 0, Eval, Eval, Neg, Update 1, Pop 1, Unwind])
   , op2 "==" Eq
   , op2 "~=" Ne
   , op2 "<"  Lt
