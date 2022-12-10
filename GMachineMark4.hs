@@ -270,7 +270,7 @@ unwind state =
 
         newState (NNum _n)
           | null (list dump)  = state  {- rule 3.10 -}
-          | otherwise         = putCode i' $ putStack (stkPush a s') $ putDump dump' $ state {- rule 3.22-}
+          | otherwise         = putCode i' $ putStack (stkPush a s') $ putDump dump' $ state {- rule 3.22-} {- TODO: save maxDepth of as -}
             where ((i',s'), dump') = stkPop dump
         newState (NAp a1 _a2) = putCode [Unwind] (putStack (a1<:>a<:>as) state)
         newState (NGlobal n c)
