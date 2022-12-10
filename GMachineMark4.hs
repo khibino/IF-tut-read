@@ -180,6 +180,7 @@ dispatch = d
     -- exercise 3.9
 
     -- exercise 3.23
+    d Eval           =  undefined
     d Add            =  arithmetic2 (+)
     d Sub            =  arithmetic2 (-)
     d Mul            =  arithmetic2 (*)
@@ -262,8 +263,12 @@ unwind state =
   newState (hLookup heap a)
   where (a, as) = stkPop $ getStack state
         heap    = getHeap state
+        dump    = getDump state
 
-        newState (NNum _n) = state
+        newState (NNum _n)
+          | null (list dump)  = state  {- rule 3.10 -}
+          | otherwise         = putCode i' $ putStack (stkPush a s') $ putDump dump' $ state {- rule 3.22-}
+            where ((i',s'), dump') = stkPop dump
         newState (NAp a1 _a2) = putCode [Unwind] (putStack (a1<:>a<:>as) state)
         newState (NGlobal n c)
           | depth as < n   =  error "Unwinding with too few arguments"
