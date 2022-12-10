@@ -307,7 +307,7 @@ primitive1 :: (b -> GmState -> GmState)  -- boxing function
            -> (a -> b)                   -- operator
            -> (GmState -> GmState)       -- state transition
 primitive1 box unbox op state =
-  box (op (unbox a state)) (putStack as state)
+  box (op (unbox a state)) (putStack as state)  {- rule 3.25 -}
   where (a, as) = stkPop $ getStack state
 
 primitive2 :: (b -> GmState -> GmState)  -- boxing function
@@ -315,7 +315,7 @@ primitive2 :: (b -> GmState -> GmState)  -- boxing function
            -> (a -> a -> b)              -- operator
            -> (GmState -> GmState)       -- state transition
 primitive2 box unbox op state =
-  box (op (unbox a0 state) (unbox a1 state)) (putStack as state)  {- rule 3.26 -}
+  box (op (unbox a0 state) (unbox a1 state)) (putStack as state)  {-rule 3.24 -} {- rule 3.26 -}
   where (a0, (a1, as)) = stkPop <$> stkPop (getStack state)
 
 boxInteger :: Int -> GmState -> GmState
