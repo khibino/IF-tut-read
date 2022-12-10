@@ -377,7 +377,7 @@ allocateSc heap (name, nargs, instns) =
   where (heap', addr) = hAlloc heap (NGlobal nargs instns)
 
 initialCode :: GmCode
-initialCode = [Pushglobal "main", Unwind]
+initialCode = [Pushglobal "main", Eval]
 
 compileSc :: (Name, [Name], CoreExpr) -> GmCompiledSC
 compileSc (name, env, body) =
@@ -440,7 +440,22 @@ argOffset n env = [(v, n+m) | (v,m) <- env]
 ---
 
 compiledPrimitives :: [GmCompiledSC]
-compiledPrimitives = []
+compiledPrimitives =
+  [ op2 "+" Add
+  , op2 "-" Sub
+  , op2 "*" Mul
+  , op2 "/" Div
+  , ("negate", 1, [Push 1, Eval, Push 1, Eval, Neg, Update 2, Pop 2, Unwind])
+  , op2 "==" Eq
+  , op2 "~=" Ne
+  , op2 "<"  Lt
+  , op2 "<=" Le
+  , op2 ">"  Gt
+  , op2 ">=" Ge
+  , ("if", 3, [Push 0, Eval, Cond [Push 1] [Push 2], Update 3, Pop 3, Unwind])
+  ]
+  where
+    op2 n i = (n, 2, [Push 1, Eval, Push 1, Eval, i, Update 2, Pop 2, Unwind])
 
 ---
 
