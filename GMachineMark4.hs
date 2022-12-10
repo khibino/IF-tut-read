@@ -179,6 +179,17 @@ dispatch = d
     d  Unwind        = unwind
     -- exercise 3.9
 
+    -- exercise 3.23
+    d Add            =  arithmetic2 (+)
+    d Sub            =  arithmetic2 (-)
+    d Mul            =  arithmetic2 (*)
+    d Div            =  arithmetic2 div
+    d Neg            =  arithmetic1 negate
+
+    -- Eq Ne
+    -- Lt Le Gt Ge
+    -- Cond
+
 pushglobal :: Name -> GmState -> GmState
 pushglobal f state =
   putStack (a <:> getStack state) state
@@ -267,6 +278,41 @@ rearrange n heap as = foldr stkPush (discard n as) $ take n as'
   where
     (_, s) = stkPop as
     as' = map (getArg . hLookup heap) (list s)
+
+primitive1 :: (b -> GmState -> GmState)  -- boxing function
+           -> (Addr -> GmState -> a)     -- unboxing fnction
+           -> (a -> b)                   -- operator
+           -> (GmState -> GmState)       -- state transition
+primitive1 box unbox op state =
+  box (op (unbox a state)) (putStack as state)
+  where (a, as) = stkPop $ getStack state
+
+primitive2 :: (b -> GmState -> GmState)  -- boxing function
+           -> (Addr -> GmState -> a)     -- unboxing fnction
+           -> (a -> a -> b)              -- operator
+           -> (GmState -> GmState)       -- state transition
+primitive2 box unbox op state =
+  box (op (unbox a0 state) (unbox a1 state)) (putStack as state)
+  where (a0, (a1, as)) = stkPop <$> stkPop (getStack state)
+
+boxInteger :: Int -> GmState -> GmState
+boxInteger n state =
+  putStack (stkPush a $ getStack state) (putHeap h' state)
+  where (h', a) = hAlloc (getHeap state) (NNum n)
+
+unboxInteger :: Addr -> GmState -> Int
+unboxInteger a state =
+  ub (hLookup (getHeap state) a)
+  where ub (NNum i) = i
+        ub _n       = error "Unboxing a non-integer"
+
+arithmetic1 :: (Int -> Int)           -- arithmetic operator
+            -> (GmState -> GmState)   -- state transition
+arithmetic1 = primitive1 boxInteger unboxInteger
+
+arithmetic2 :: (Int -> Int -> Int)    -- arithmetic operator
+            -> (GmState -> GmState)   -- state transition
+arithmetic2  = primitive2 boxInteger unboxInteger
 
 ---
 
