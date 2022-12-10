@@ -197,7 +197,7 @@ dispatch = d
     d Gt             =  comparison (>)
     d Ge             =  comparison (>=)
 
-    -- d Cond c1 c2     =  cond c1 c2
+    d (Cond i1 i2)   =  cond i1 i2
 
 pushglobal :: Name -> GmState -> GmState
 pushglobal f state =
@@ -297,9 +297,7 @@ evalop state = putCode [Unwind] $ putStack stack' $ putDump (stkPush (i,s) d) st
   where (a, s) = stkPop $ getStack state
         stack' = stkOfList [a] 0 {- TODO: maxDepth s -}
         d = getDump state
-        i = case getCode state of
-          (_:is) -> is
-          []    -> error "evalop: code is null!"
+        i = getCode state
 
 
 primitive1 :: (b -> GmState -> GmState)  -- boxing function
@@ -346,6 +344,15 @@ boxBoolean b state =
 
 comparison :: (Int -> Int -> Bool) -> GmState -> GmState
 comparison = primitive2 boxBoolean unboxInteger
+
+cond :: GmCode -> GmCode -> (GmState -> GmState)
+cond i1 i2 state = putCode (ni ++ i) $ putStack s state {- rule 3.27 -} {- rule 3.28 -}
+  where (a,s) = stkPop (getStack state)
+        ni = case hLookup (getHeap state) a of
+          NNum 1  -> i1
+          NNum 0  -> i2
+          n       -> error $ "cond: not expected NNum node: " ++ show n
+        i = getCode state
 
 ---
 
