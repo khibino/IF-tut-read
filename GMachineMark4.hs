@@ -683,6 +683,27 @@ showNode s a node   = case node of
   NInd a1      ->  iConcat [iStr "NInd ", showAddr a1]
   -- exercise 3.8
 
+{-
+debugNestedAp :: Heap Node -> Node -> IseqRep
+debugNestedAp heap = rec_ id
+  where
+    paren s = iConcat [iStr "(", s, iStr ")"]
+    rec_ pf (NAp fun arg) =
+      pf $ iConcat [rec_ id (hLookup heap fun), iStr " ", rec_ paren (hLookup heap arg)]
+    rec_ _ x             =
+      leaf x
+    leaf (NNum i)           =  iStr $ show i
+    leaf (NAp {})           =  error "bug: showNestedAp: leaf called for NAp"
+    leaf (NGlobal {})
+    -- leaf (NPrim n _)        =  iStr n
+    -- leaf (NSupercomb n _ _) =  iStr n
+    -- leaf (NInd a)           =  iStr $ showA a
+    -- leaf (NData t as@[])    =  iStr $ showNData t as
+    -- leaf (NData t as@(_:_)) =  iStr $ "(" ++ showNData t as ++ ")"
+    showNData t as = unwords $ ("<" ++ show t ++ ">") : map showA as
+    showA a = "[" ++ show a ++ "]"
+ -}
+
 showAddr :: Addr -> IseqRep
 showAddr addr = iStr (show addr)
 
@@ -814,10 +835,18 @@ testB32gcd = "gcd a b = if (a==b) \
              \          if (a<b) (gcd b a) (gcd b (a-b)) ;\
              \main = gcd 6 10"
 
+testB32gcdS = "gcd a b = if (a==b) \
+              \             a \
+              \          if (a<b) (gcd b a) (gcd b (a-b)) ;\
+              \main = gcd 1 1"
+
 testB32nfib = "nfib n = if (n==0) \
               \            1 \
               \         if (n==1) 1 (nfib (n-1) + nfib (n-2)) ;\
               \main = nfib 4"
+
+testThunk = "fac n = if (n==0) 1 (n * fac (n-1)) ;\
+            \main = K 2 (fac 5)"
 
 test_ :: Bool -> String -> IO ()
 test_ nestedDebug = putStrLn . showResults . eval . compile . parse
