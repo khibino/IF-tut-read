@@ -461,11 +461,47 @@ showInstruction  ins
   | ins `elem` [ Eval, Add, Sub, Mul, Div, Neg
                , Eq, Ne, Lt, Le, Gt, Ge]  =  iStr $ show ins
   | otherwise                             =  error $ "showInstruction: unknown instruction: " ++ show ins
+
 showState :: GmState -> IseqRep
 showState s =
   iConcat
   [ showStack s, iNewline
-  , showInstructions (getCode s) ]
+  , showDump s, iNewline
+  , showInstructions (getCode s), iNewline ]
+
+showDump :: GmState -> IseqRep
+showDump s =
+  iConcat
+  [ iStr "  Dump:["
+  , iIndent (iInterleave iNewline
+             (map showDumpItem (reverse (list $ getDump s))))
+  , iStr "]"
+  ]
+
+showDumpItem :: GmDumpItem -> IseqRep
+showDumpItem (code, stack) =
+  iConcat
+  [ iStr "<"
+  , shortShowInstructions 3 code, iStr ", "
+  , shortShowStack stack,         iStr ">"
+  ]
+
+shortShowInstructions :: Int -> GmCode -> IseqRep
+shortShowInstructions number code =
+  iConcat
+  [ iStr "{", iInterleave (iStr ";") dotcodes, iStr "}" ]
+  where
+    codes = map showInstruction (take number code)
+    dotcodes | length code > number  = codes ++ [iStr "..."]
+             | otherwise             = codes
+
+shortShowStack :: GmStack -> IseqRep
+shortShowStack stack =
+  iConcat
+  [ iStr "["
+  , iInterleave (iStr ", ") (map showAddr $ list stack)
+  , iStr "]"
+  ]
 
 {-
 showHeap :: GmHeap -> IseqRep
