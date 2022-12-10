@@ -18,6 +18,9 @@ data Stack a =
   }
   deriving Show
 
+stkOfList :: [a] -> Int -> Stack a
+stkOfList xs md = Stack { list = xs, depth = length xs, maxDepth = md }
+
 stkPush :: a -> Stack a -> Stack a
 stkPush x Stack { list = xs, depth = d, maxDepth = maxd } =
   Stack { list = x:xs, depth = d+1, maxDepth = max (d + 1) maxd }
@@ -180,7 +183,7 @@ dispatch = d
     -- exercise 3.9
 
     -- exercise 3.23
-    d Eval           =  undefined
+    d Eval           =  evalop
     d Add            =  arithmetic2 (+)
     d Sub            =  arithmetic2 (-)
     d Mul            =  arithmetic2 (*)
@@ -283,6 +286,16 @@ rearrange n heap as = foldr stkPush (discard n as) $ take n as'
   where
     (_, s) = stkPop as
     as' = map (getArg . hLookup heap) (list s)
+
+evalop :: GmState -> GmState
+evalop state = putCode [Unwind] $ putStack stack' $ putDump (stkPush (i,s) d) state {- rule 3.23 -}
+  where (a, s) = stkPop $ getStack state
+        stack' = stkOfList [a] 0 {- TODO: maxDepth s -}
+        d = getDump state
+        i = case getCode state of
+          (_:is) -> is
+          []    -> error "evalop: code is null!"
+
 
 primitive1 :: (b -> GmState -> GmState)  -- boxing function
            -> (Addr -> GmState -> a)     -- unboxing fnction
