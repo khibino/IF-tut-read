@@ -642,6 +642,15 @@ testB11C = "id = S K K ;\
 
 testB12 = "main = twice (I I I) 3"
 
+testB23 = "cons a b cc cn = cc a b ; \
+          \nil      cc cn = cn ; \
+          \hd list = list K abort ; \
+          \tl list = list K1 abort ; \
+          \abort = abort ; \
+          \infinite x = letrec xs = cons x xs \
+          \             in xs ; \
+          \main = hd (tl (tl (infinite 4)))"
+
 test_ :: Bool -> String -> IO ()
 test_ nestedDebug = putStrLn . showResults . eval . compile . parse
 -- test_ nestedDebug = putStrLn . showResults . eval . setDebug . compile . parse
