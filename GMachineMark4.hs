@@ -591,6 +591,17 @@ showStack s =
       , showNode s a (hLookup (getHeap s) a)
       ]
 
+{-
+showStackMaxDepth :: GmStack -> IseqRep
+showStackMaxDepth stack = undefined
+ -}
+
+{-
+showStkNode :: Bool -> GmHeap -> Node -> IseqRep
+showStkNode nestedDebug heap n = undefined
+-- showStkNode _  _heap node = showNode node
+ -}
+
 showDump :: GmState -> IseqRep
 showDump s =
   iConcat
@@ -624,17 +635,6 @@ shortShowStack stack =
   , iInterleave (iStr ", ") (map showAddr $ list stack)
   , iStr "]"
   ]
-
-{-
-showStackMaxDepth :: GmStack -> IseqRep
-showStackMaxDepth stack = undefined
- -}
-
-{-
-showStkNode :: Bool -> GmHeap -> Node -> IseqRep
-showStkNode nestedDebug heap n = undefined
--- showStkNode _  _heap node = showNode node
- -}
 
 {-
 showHeap :: GmHeap -> IseqRep
