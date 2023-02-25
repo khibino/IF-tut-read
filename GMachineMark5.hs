@@ -356,6 +356,13 @@ cond i1 i2 state = putCode (ni ++ i) $ putStack s state {- rule 3.27 -} {- rule 
 
 ---
 
+builtInDyadic :: Assoc Name Instruction
+builtInDyadic =
+  [ ("+", Add), ("-", Sub), ("*", Mul), ("div", Div)
+  , ("==", Eq), ("~=", Ne), (">=", Ge)
+  , (">", Gt), ("<=", Le), ("<", Lt)
+  ]
+
 -- Compiling a program
 
 compile :: CoreProgram -> GmState
@@ -396,8 +403,21 @@ compileRslide :: GmCompiler
 compileRslide e env = compileC e env ++ [Slide (length env + 1), Unwind]
 
 compileR :: GmCompiler
-compileR e env = compileC e env ++ [Update n, Pop n, Unwind]
+compileR e env = compileE e env ++ [Update n, Pop n, Unwind] {- exercise 3.28 -}
   where n = length env
+
+-- exercise 3.28
+compileE :: GmCompiler
+compileE (ENum n) _env =  [Pushint n]
+compileE (ELet recursive defs e) env
+  | recursive  = compileLetrec compileE defs e env
+  | otherwise  = compileLet    compileE defs e env
+compileE (EAp (EAp (EVar opn) e0) e1) env
+  | Just op <- lookup opn builtInDyadic = compileE e1 env ++ compileE e0 env ++ [op]
+compileE (EAp (EVar "negate") e) env = compileE e env ++ [Neg]
+compileE (EAp (EAp (EAp (EVar "if") e0) e1) e2) env =
+  compileE e0 env ++ [Cond (compileE e1 env) (compileE e2 env)]
+compileE e env = compileC e env ++ [Eval]
 
 compileC :: GmCompiler
 compileC (EVar v)     env
