@@ -211,8 +211,8 @@ pushint n state =
   where --- (heap', a) = hAlloc (getHeap state) (NNum n)
         -- exercise 3.6
         ((heap', a), g) = case aLookup globals name (-1) of
-                          a' | a' < 0     ->  (hAlloc (getHeap state) (NNum n), (name, a') : globals)
-                             | otherwise  ->  ((getHeap state, a'), globals)
+                          a' | a' < 0     ->  (hAlloc (getHeap state) (NNum n), (name, a') : globals)  {- rule 3.14-}
+                             | otherwise  ->  ((getHeap state, a'), globals)                           {- rule 3.13-}
         name = show n
         globals = getGlobals state
 
