@@ -166,6 +166,7 @@ dispatch = d
 
 pushglobal :: Name -> GmState -> GmState
 pushglobal f state =
+  {- rule 3.5 -}
   putStack (a <:> getStack state) state
   where a = aLookup (getGlobals state) f (error ("Undeclared globals " ++ f))
 
