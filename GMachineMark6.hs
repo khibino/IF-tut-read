@@ -897,6 +897,7 @@ testB32nfib = "nfib n = if (n==0) \
               \         if (n==1) 1 (nfib (n-1) + nfib (n-2)) ;\
               \main = nfib 4"
 
+-- estimate 6183 step
 testB32nfibx = "nfib n = if (n < 2) \
                \            1 \
                \            (nfib (n-1) + nfib (n-2)) ;\
