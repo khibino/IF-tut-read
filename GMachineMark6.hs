@@ -45,7 +45,8 @@ infixr 5 <:>
 ---
 
 type GmState =
-  ( GmCode
+  ( GmOutput
+  , GmCode
   , GmStack
   , GmDump
   , GmHeap
@@ -53,14 +54,23 @@ type GmState =
   , GmStats
   )
 
+type GmOutput = [Char]
+
 type GmCode = [Instruction]
 
+getOutput :: GmState -> GmOutput
+getOutput (out, _i, _stack, _dump, _heap, _globals, _stats) = out
+
+putOutput :: GmOutput -> GmState -> GmState
+putOutput out' (_out, i, stack, dump, heap, globals, stats) =
+  (out', i, stack, dump, heap, globals, stats)
+
 getCode :: GmState -> GmCode
-getCode (i, _stack, _dump, _heap, _globals, _stats) = i
+getCode (_out, i, _stack, _dump, _heap, _globals, _stats) = i
 
 putCode :: GmCode -> GmState -> GmState
-putCode i' (i, stack, dump, heap, globals, stats) =
-  (i', stack, dump, heap, globals, stats)
+putCode i' (out, _i, stack, dump, heap, globals, stats) =
+  (out, i', stack, dump, heap, globals, stats)
 
 data Instruction
   = Unwind
@@ -76,52 +86,64 @@ data Instruction
   | Add | Sub | Mul | Div | Neg
   | Eq | Ne | Lt | Le | Gt | Ge
   | Cond GmCode GmCode
+  | Pack Int Int
+  | Casejump [(Int, GmCode)]
+  | Split Int
+  | Print
   deriving (Eq, Show)
 
 type GmStack = Stack Addr
 -- type GmStack = [Addr]
 
 getStack :: GmState -> GmStack
-getStack (_i, stack, _dump, _heap, _globals, _stats) = stack
+getStack (_out, _i, stack, _dump, _heap, _globals, _stats) = stack
 
 putStack :: GmStack -> GmState -> GmState
-putStack stack' (i, _stack, dump, heap, globals, stats) =
-  (i, stack', dump, heap, globals, stats)
+putStack stack' (out, i, _stack, dump, heap, globals, stats) =
+  (out, i, stack', dump, heap, globals, stats)
 
 type GmDump = Stack GmDumpItem
 type GmDumpItem = (GmCode, GmStack)
 
 getDump :: GmState -> GmDump
-getDump (_i, _stack, dump, _heap, _globals, _stats) = dump
+getDump (_out, _i, _stack, dump, _heap, _globals, _stats) = dump
 
 putDump :: GmDump -> GmState -> GmState
-putDump dump' (i, stack, _dump, heap, globals, stats) =
-  (i, stack, dump', heap, globals, stats)
+putDump dump' (out, i, stack, _dump, heap, globals, stats) =
+  (out, i, stack, dump', heap, globals, stats)
 
 type GmHeap = Heap Node
 
 getHeap :: GmState -> GmHeap
-getHeap (_i, _stack, _dump, heap, _globals, _stats) = heap
+getHeap (_out, _i, _stack, _dump, heap, _globals, _stats) = heap
 
 putHeap :: GmHeap -> GmState -> GmState
-putHeap heap' (i, stack, dump, _heap, globals, stats) =
-  (i, stack, dump, heap', globals, stats)
+putHeap heap' (out, i, stack, dump, _heap, globals, stats) =
+  (out, i, stack, dump, heap', globals, stats)
 
 data Node
   = NNum Int             -- Numbers
   | NAp Addr Addr        -- Applications
   | NGlobal Int GmCode   -- Globals
   | NInd Addr            -- Indirections
+  | NConstr Int [Addr]
   deriving (Eq, Show)
+
+{-
+instance Eq Node
+  where
+    NNum a    ==  NNum b    =  a == b
+    NAp a b   ==  NAp c d   =  False
+ -}
 
 type GmGlobals = Assoc Name Addr
 
 getGlobals :: GmState -> GmGlobals
-getGlobals (_i, _stack, _dump, _heap, globals, _stats) = globals
+getGlobals (_out, _i, _stack, _dump, _heap, globals, _stats) = globals
 
 putGlobals :: GmGlobals -> GmState -> GmState
-putGlobals globals' (i, stack, dump, heap, _globals, stats) =
-  (i, stack, dump, heap, globals', stats)
+putGlobals globals' (out, i, stack, dump, heap, _globals, stats) =
+  (out, i, stack, dump, heap, globals', stats)
 
 data GmStats =
   GmStats
@@ -139,11 +161,11 @@ statGetSteps :: GmStats -> Int
 statGetSteps = steps
 
 getStats :: GmState -> GmStats
-getStats (_i, _stack, _dump, _heap, _globals, stats) = stats
+getStats (_out, _i, _stack, _dump, _heap, _globals, stats) = stats
 
 putStats :: GmStats -> GmState -> GmState
-putStats stats' (i, stack, dump, heap, globals, _stats) =
-  (i, stack, dump, heap, globals, stats')
+putStats stats' (out, i, stack, dump, heap, globals, _stats) =
+  (out, i, stack, dump, heap, globals, stats')
 
 ---
 
@@ -198,6 +220,8 @@ dispatch = d
     d Ge             =  comparison (>=)
 
     d (Cond i1 i2)   =  cond i1 i2
+
+    d Print          =  print_
 
 pushglobal :: Name -> GmState -> GmState
 pushglobal f state =
@@ -354,13 +378,21 @@ cond i1 i2 state = putCode (ni ++ i) $ putStack s state {- rule 3.27 -} {- rule 
           n       -> error $ "cond: not expected NNum node: " ++ show n
         i = getCode state
 
+print_ :: GmState -> GmState
+print_ state = case hLookup (getHeap state) a of
+  NNum n         ->  putOutput (getOutput state ++ show n) state  {- rule 3.33 -}
+  NConstr _t as  ->  putCode i' $ putStack s1 state  {- rule 3.34 -}
+    where s1 = foldr stkPush s as
+          i' = take (length as * 2) (cycle [Eval, Print]) ++ getCode state
+  where (a,s) = stkPop (getStack state)
+
 ---
 
 -- Compiling a program
 
 compile :: CoreProgram -> GmState
 compile program =
-  (initialCode, Stack [] 0 0, Stack [] 0 0, heap, globals, statInitial)
+  ([], initialCode, Stack [] 0 0, Stack [] 0 0, heap, globals, statInitial)
   where (heap, globals) = buildInitialHeap program
 
 buildInitialHeap :: CoreProgram -> (GmHeap, GmGlobals)
@@ -572,9 +604,13 @@ showInstruction  ins
 showState :: GmState -> IseqRep
 showState s =
   iConcat
-  [ showStack s, iNewline
+  [ showOutput s, iNewline
+  , showStack s, iNewline
   , showDump s, iNewline
   , showInstructions (getCode s), iNewline ]
+
+showOutput :: GmState -> IseqRep
+showOutput s = iConcat [iStr "Output:\"", iStr (getOutput s), iStr "\""]
 
 showDump :: GmState -> IseqRep
 showDump s =
@@ -681,6 +717,9 @@ showNode s a node   = case node of
                    [ iStr "Ap ", showAddr a1
                    , iStr " ",   showAddr a2 ]
   NInd a1      ->  iConcat [iStr "NInd ", showAddr a1]
+  NConstr t as ->  iConcat [ iStr "Cons ", iNum t, iStr " ["
+                           , iInterleave (iStr ", ") (map showAddr as), iStr "]" ]
+
   -- exercise 3.8
 
 {-
@@ -721,9 +760,6 @@ showStats s =
   where
     heap = getHeap s
     stats = getStats s
-
-showOutput :: GmState -> IseqRep
-showOutput = undefined
 
 -- exercise 2.4 - arranged
 testProg0, testProg1, testProg2 :: String
@@ -844,6 +880,11 @@ testB32nfib = "nfib n = if (n==0) \
               \            1 \
               \         if (n==1) 1 (nfib (n-1) + nfib (n-2)) ;\
               \main = nfib 4"
+
+testB32nfibx = "nfib n = if (n < 2) \
+               \            1 \
+               \            (nfib (n-1) + nfib (n-2)) ;\
+               \main = nfib 4"
 
 testThunk = "fac n = if (n==0) 1 (n * fac (n-1)) ;\
             \main = K 2 (fac 5)"
