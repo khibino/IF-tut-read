@@ -680,7 +680,7 @@ showNode s a node   = case node of
   NAp a1 a2    ->  iConcat
                    [ iStr "Ap ", showAddr a1
                    , iStr " ",   showAddr a2 ]
-  NInd a1      ->  iConcat [iStr "NInd ", showAddr a1]
+  NInd a1      ->  iConcat [iStr "Ind ", showAddr a1]
   -- exercise 3.8
 
 {-
