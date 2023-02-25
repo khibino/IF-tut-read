@@ -257,6 +257,7 @@ type GmCompiler = CoreExpr -> GmEnvironment -> GmCode
 compileRslide :: GmCompiler
 compileRslide e env = compileC e env ++ [Slide (length env + 1), Unwind]
 
+{- exercise 3.10 -}
 compileR :: GmCompiler
 compileR e env = compileC e env ++ [Update n, Pop n, Unwind]
   where n = length env
