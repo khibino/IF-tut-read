@@ -421,6 +421,12 @@ showSC s (name, addr) =
   , showInstructions code ]
   where (NGlobal arity code) = hLookup (getHeap s) addr
 
+showState :: GmState -> IseqRep
+showState s =
+  iConcat
+  [ showStack s, iNewline
+  , showInstructions (getCode s) ]
+
 showInstructions :: GmCode -> IseqRep
 showInstructions is =
   iConcat
@@ -439,28 +445,6 @@ showInstruction (Alloc n)       =  iStr "Alloc " `iAppend` iNum n  {- exercise 3
 showInstruction (Update n)      =  iStr "Update " `iAppend` iNum n
 showInstruction (Pop n)         =  iStr "Pop " `iAppend` iNum n
 -- exersise 3.7.
-
-showState :: GmState -> IseqRep
-showState s =
-  iConcat
-  [ showStack s, iNewline
-  , showInstructions (getCode s) ]
-
-{-
-showHeap :: GmHeap -> IseqRep
-showHeap heap = undefined
- -}
-  -- Heap { allocs = contents, count = c } -> iConcat
-  --   [ iStr "Heap ["
-  --   , iIndent (iInterleave iNewline (map showHeapItem contents))
-  --   , iStr " ]"
-  --   , iNewline, iIndent (iStr "Allocation count = " `iAppend` iNum c)
-  --   ]
-  -- where
-  --   showHeapItem (addr, node) =
-  --     iConcat [ showFWAddr addr, iStr ": "
-  --             , showNode node
-  --             ]
 
 -- showStack :: Bool -> GmHeap -> GmStack -> IseqRep
 showStack :: GmState -> IseqRep
@@ -487,6 +471,22 @@ showStkNode :: Bool -> GmHeap -> Node -> IseqRep
 showStkNode nestedDebug heap n = undefined
 -- showStkNode _  _heap node = showNode node
  -}
+
+{-
+showHeap :: GmHeap -> IseqRep
+showHeap heap = undefined
+ -}
+  -- Heap { allocs = contents, count = c } -> iConcat
+  --   [ iStr "Heap ["
+  --   , iIndent (iInterleave iNewline (map showHeapItem contents))
+  --   , iStr " ]"
+  --   , iNewline, iIndent (iStr "Allocation count = " `iAppend` iNum c)
+  --   ]
+  -- where
+  --   showHeapItem (addr, node) =
+  --     iConcat [ showFWAddr addr, iStr ": "
+  --             , showNode node
+  --             ]
 
 {-
 debugNestedAp :: Heap Node -> Node -> IseqRep
