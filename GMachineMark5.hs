@@ -563,6 +563,13 @@ showSC s (name, addr) =
   , showInstructions code ]
   where (NGlobal arity code) = hLookup (getHeap s) addr
 
+showState :: GmState -> IseqRep
+showState s =
+  iConcat
+  [ showStack s, iNewline
+  , showDump s, iNewline
+  , showInstructions (getCode s), iNewline ]
+
 showInstructions :: GmCode -> IseqRep
 showInstructions is =
   iConcat
@@ -589,12 +596,31 @@ showInstruction  ins
                , Eq, Ne, Lt, Le, Gt, Ge]  =  iStr $ show ins
   | otherwise                             =  error $ "showInstruction: unknown instruction: " ++ show ins
 
-showState :: GmState -> IseqRep
-showState s =
+-- showStack :: Bool -> GmHeap -> GmStack -> IseqRep
+showStack :: GmState -> IseqRep
+showStack s =
   iConcat
-  [ showStack s, iNewline
-  , showDump s, iNewline
-  , showInstructions (getCode s), iNewline ]
+  [ iStr " Stack:["
+  , iIndent (iInterleave iNewline $ map showStackItem (reverse $ list $ getStack s))
+  , iStr "]"
+  ]
+  where
+    showStackItem a =
+      iConcat
+      [ showFWAddr a,  iStr ": "
+      , showNode s a (hLookup (getHeap s) a)
+      ]
+
+{-
+showStackMaxDepth :: GmStack -> IseqRep
+showStackMaxDepth stack = undefined
+ -}
+
+{-
+showStkNode :: Bool -> GmHeap -> Node -> IseqRep
+showStkNode nestedDebug heap n = undefined
+-- showStkNode _  _heap node = showNode node
+ -}
 
 showDump :: GmState -> IseqRep
 showDump s =
@@ -645,32 +671,6 @@ showHeap heap = undefined
   --     iConcat [ showFWAddr addr, iStr ": "
   --             , showNode node
   --             ]
-
--- showStack :: Bool -> GmHeap -> GmStack -> IseqRep
-showStack :: GmState -> IseqRep
-showStack s =
-  iConcat
-  [ iStr " Stack:["
-  , iIndent (iInterleave iNewline $ map showStackItem (reverse $ list $ getStack s))
-  , iStr "]"
-  ]
-  where
-    showStackItem a =
-      iConcat
-      [ showFWAddr a,  iStr ": "
-      , showNode s a (hLookup (getHeap s) a)
-      ]
-
-{-
-showStackMaxDepth :: GmStack -> IseqRep
-showStackMaxDepth stack = undefined
- -}
-
-{-
-showStkNode :: Bool -> GmHeap -> Node -> IseqRep
-showStkNode nestedDebug heap n = undefined
--- showStkNode _  _heap node = showNode node
- -}
 
 {-
 debugNestedAp :: Heap Node -> Node -> IseqRep
