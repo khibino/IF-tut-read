@@ -341,6 +341,9 @@ showState s =
   [ showStack s, iNewline
   , showInstructions (getCode s) ]
 
+showOutput :: GmState -> IseqRep
+showOutput = undefined
+
 showInstructions :: GmCode -> IseqRep
 showInstructions is =
   iConcat
@@ -444,9 +447,6 @@ showStats s =
   where
     heap = getHeap s
     stats = getStats s
-
-showOutput :: GmState -> IseqRep
-showOutput = undefined
 
 -- exercise 2.4 - arranged
 testProg0, testProg1, testProg2 :: String

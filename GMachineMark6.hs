@@ -598,6 +598,9 @@ showState s =
   , showDump s, iNewline
   , showInstructions (getCode s), iNewline ]
 
+showOutput :: GmState -> IseqRep
+showOutput s = iConcat [iStr "Output:\"", iStr (getOutput s), iStr "\""]
+
 showInstructions :: GmCode -> IseqRep
 showInstructions is =
   iConcat
@@ -624,9 +627,6 @@ showInstruction  ins
   | ins `elem` [ Eval, Add, Sub, Mul, Div, Neg
                , Eq, Ne, Lt, Le, Gt, Ge]  =  iStr $ show ins
   | otherwise                             =  error $ "showInstruction: unknown instruction: " ++ show ins
-
-showOutput :: GmState -> IseqRep
-showOutput s = iConcat [iStr "Output:\"", iStr (getOutput s), iStr "\""]
 
 -- showStack :: Bool -> GmHeap -> GmStack -> IseqRep
 showStack :: GmState -> IseqRep
