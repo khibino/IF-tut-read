@@ -384,6 +384,7 @@ print_ state = case hLookup (getHeap state) a of
   NConstr _t as  ->  putCode i' $ putStack s1 state  {- rule 3.34 -}
     where s1 = foldr stkPush s as
           i' = take (length as * 2) (cycle [Eval, Print]) ++ getCode state
+  node          ->  error $ "print: not NNum or NConstr: " ++ show node
   where (a,s) = stkPop (getStack state)
 
 ---
@@ -409,7 +410,7 @@ allocateSc heap (name, nargs, instns) =
   where (heap', addr) = hAlloc heap (NGlobal nargs instns)
 
 initialCode :: GmCode
-initialCode = [Pushglobal "main", Eval]
+initialCode = [Pushglobal "main", Eval, Print]
 -- initialCode = [Pushglobal "main", Unwind]
 
 {- exercise 3.24
@@ -474,6 +475,20 @@ compileLetrec' ((_name, expr):defs) env =
 
 argOffset :: Int -> GmEnvironment -> GmEnvironment
 argOffset n env = [(v, n+m) | (v,m) <- env]
+
+compileAlts :: (Int -> GmCompiler)
+            -> [CoreAlt]
+            -> GmEnvironment
+            -> [(Int, GmCode)]
+compileAlts comp alts env =
+  [ (tag, comp (length names) body (zip names [0..] ++ argOffset (length names) env))
+  | (tag, names, body) <- alts]
+
+compileE' :: Int -> GmCompiler
+compileE' offset expr env =
+  [Split offset] ++ compileE expr env ++ [Slide offset]
+
+compileE = undefined
 
 ---
 
@@ -596,6 +611,7 @@ showInstruction (Cond xs ys)    =  iStr "Code " `iAppend` iCodes xs `iAppend` iC
   where iCodes cs = case cs of
           []    ->  iStr "[]"
           x:_   ->  iConcat [iStr "[", showInstruction x, iStr " ... ]"]
+showInstruction  Print          =  iStr "Print"
 showInstruction  ins
   | ins `elem` [ Eval, Add, Sub, Mul, Div, Neg
                , Eq, Ne, Lt, Le, Gt, Ge]  =  iStr $ show ins
@@ -884,7 +900,7 @@ testB32nfib = "nfib n = if (n==0) \
 testB32nfibx = "nfib n = if (n < 2) \
                \            1 \
                \            (nfib (n-1) + nfib (n-2)) ;\
-               \main = nfib 4"
+               \main = nfib 10"
 
 testThunk = "fac n = if (n==0) 1 (n * fac (n-1)) ;\
             \main = K 2 (fac 5)"
