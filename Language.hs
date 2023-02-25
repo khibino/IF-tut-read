@@ -24,9 +24,9 @@ type CoreExpr = Expr Name
 type Name = String
 
 type IsRec = Bool
-recursive, nonRecursive :: IsRec
-recursive    = True
-nonRecursive = False
+-- recursive, nonRecursive :: IsRec
+-- recursive    = True
+-- nonRecursive = False
 
 bindersOf :: [(a,b)] -> [a]
 bindersOf defns =  [name | (name, _rhs) <- defns]
