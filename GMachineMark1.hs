@@ -200,7 +200,7 @@ unwind state =
         newState (NAp a1 _a2) = putCode [Unwind] (putStack (a1<:>a<:>as) state)
         newState (NGlobal n c)
           | depth as < n   =  error "Unwinding with too few arguments"
-          | otherwise      =  putCode c state
+          | otherwise      =  putCode c state  {- rule 3.12 -}
         -- newState  n        =  error $ "unwind.newState: unknown node: " ++ show n
 
 ---
