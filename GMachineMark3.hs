@@ -304,8 +304,8 @@ compileC (EAp e1 e2)  env   =  compileC e2 env ++
                                compileC e1 (argOffset 1 env) ++
                                [Mkap]                {- Fig 3.10  p.114, Fig 3.3  p.100 -}
 compileC (ELet recursive defs e) env
-  | recursive  = compileLetrec compileC defs e env
-  | otherwise  = compileLet    compileC defs e env
+  | recursive  = compileLetrec compileC defs e env  {- Fig 3.10  p.114 -}
+  | otherwise  = compileLet    compileC defs e env  {- Fig 3.10  p.114 -}
 
 compileLet :: GmCompiler -> [(Name, CoreExpr)] -> GmCompiler
 compileLet comp defs expr env =
