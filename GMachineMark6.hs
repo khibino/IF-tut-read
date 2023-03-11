@@ -220,6 +220,7 @@ dispatch = d
     d (Cond i1 i2)   =  cond i1 i2
 
     d (Pack t n)     =  pack t n
+    d (Casejump jm)  =  casejump jm
     d Print          =  print_
 
 pushglobal :: Name -> GmState -> GmState
@@ -387,6 +388,16 @@ pack t n state = putStack (stkPush a s) (putHeap h state)
   where (as, s) = stkPopN n (getStack state)
         (h, a) = hAlloc (getHeap state) (NConstr t as)
         {- rule 3.30 -}
+
+casejump :: [(Int, GmCode)] -> GmState -> GmState
+casejump jm state = case hLookup h a of
+  NConstr t _ss  ->  case lookup t jm of
+    Nothing  ->  error $ "casejump: tag not found: " ++ show t
+    Just i'  ->  putCode (i' ++ getCode state) state
+  n          ->  error $ "casejump: constructor not found: " ++ show n
+  where (a, _s) = stkPop (getStack state)
+        h = getHeap state
+
 
 print_ :: GmState -> GmState
 print_ state = case hLookup (getHeap state) a of
