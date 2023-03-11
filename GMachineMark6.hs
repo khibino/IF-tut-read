@@ -397,7 +397,7 @@ casejump jm state = case hLookup h a of
   n          ->  error $ "casejump: constructor not found: " ++ show n
   where (a, _s) = stkPop (getStack state)
         h = getHeap state
-
+        {- rule 3.31 -}
 
 print_ :: GmState -> GmState
 print_ state = case hLookup (getHeap state) a of
