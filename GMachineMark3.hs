@@ -281,7 +281,7 @@ initialCode = [Pushglobal "main", Unwind]
 
 compileSc :: (Name, [Name], CoreExpr) -> GmCompiledSC
 compileSc (name, env, body) =
-  (name, length env, compileR body $ zip env [0..])
+  (name, length env, compileR body $ zip env [0..])  {- Fig 3.3  p.100 -}
 
 type GmEnvironment = Assoc Name Int
 type GmCompiler = CoreExpr -> GmEnvironment -> GmCode
@@ -291,25 +291,25 @@ compileRslide e env = compileC e env ++ [Slide (length env + 1), Unwind]
 
 {- exercise 3.10 -}
 compileR :: GmCompiler
-compileR e env = compileC e env ++ [Update n, Pop n, Unwind]
+compileR e env = compileC e env ++ [Update n, Pop n, Unwind]  {- Fig 3.6  p.109 -}
   where n = length env
 
 compileC :: GmCompiler
 compileC (EVar v)     env
-  | v `elem` (aDomain env)  =  [Push n]
-  | otherwise               =  [Pushglobal v]
+  | v `elem` (aDomain env)  =  [Push n]              {- Fig 3.3  p.100, Fig 3.10  p.114 -}
+  | otherwise               =  [Pushglobal v]        {- Fig 3.3  p.100, Fig 3.10  p.114 -}
   where n = aLookup env v (error "compileC.EVar: Can't happen")
-compileC (ENum n)     env   =  [Pushint n]
+compileC (ENum n)     env   =  [Pushint n]           {- Fig 3.3  p.100, Fig 3.10  p.114 -}
 compileC (EAp e1 e2)  env   =  compileC e2 env ++
                                compileC e1 (argOffset 1 env) ++
-                               [Mkap]
+                               [Mkap]                {- Fig 3.3  p.100, Fig 3.10  p.114 -}
 compileC (ELet recursive defs e) env
   | recursive  = compileLetrec compileC defs e env
   | otherwise  = compileLet    compileC defs e env
 
 compileLet :: GmCompiler -> [(Name, CoreExpr)] -> GmCompiler
 compileLet comp defs expr env =
-  compileLet' defs env ++ comp expr env' ++ [Slide (length defs)]
+  compileLet' defs env ++ comp expr env' ++ [Slide (length defs)]  {- Fig 3.10  p.114 -}
   where env' = compileArgs defs env
 
 compileLet' :: [(Name, CoreExpr)] -> GmEnvironment -> GmCode
@@ -325,7 +325,7 @@ compileArgs defs env =
 -- exercise 3.16
 compileLetrec :: GmCompiler -> [(Name, CoreExpr)] -> GmCompiler
 compileLetrec  comp defs expr env =
-  [Alloc n] ++ compileLetrec' defs env' ++ comp expr env' ++ [Slide n]
+  [Alloc n] ++ compileLetrec' defs env' ++ comp expr env' ++ [Slide n]  {- Fig 3.10  p.114 -}
   where
     env' = compileArgs defs env
     n = length defs
