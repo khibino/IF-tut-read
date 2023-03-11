@@ -492,12 +492,19 @@ compileC (EVar v)     env
   | otherwise               =  [Pushglobal v]        {- Fig 3.10  p.114, Fig 3.3  p.100 -}
   where n = aLookup env v (error "compileC.EVar: Can't happen")
 compileC (ENum n)     env   =  [Pushint n]           {- Fig 3.10  p.114, Fig 3.3  p.100 -}
-compileC (EAp e1 e2)  env   =  compileC e2 env ++
-                               compileC e1 (argOffset 1 env) ++
-                               [Mkap]                {- Fig 3.10  p.114, Fig 3.3  p.100 -}
+compileC e@(EAp {})   env   =  case f of
+  EConstr {}  ->  concatI (\i2 i1 -> i2 ++ i1 ++ [Mkap])
+  _           ->  concatI (++)
+  where (f, concatI) = compileCaps e env
 compileC (ELet recursive defs e) env
   | recursive  = compileLetrec compileC defs e env  {- Fig 3.10  p.114 -}
   | otherwise  = compileLet    compileC defs e env  {- Fig 3.10  p.114 -}
+
+compileCaps :: CoreExpr -> GmEnvironment -> (CoreExpr, (GmCode -> GmCode -> GmCode) -> GmCode)
+compileCaps (f@(EConstr t n)) env  =  (f, \_      ->  [Pack t n])  {- Fig 3.14  p.134 -}
+compileCaps (EAp e1 e2)       env  =  (f, \ (<+>) ->  compileC e2 env <+> concatI1 (<+>))   {- Fig 3.10  p.114, Fig 3.3  p.100 -}
+  where (f, concatI1) = compileCaps e1 (argOffset 1 env)
+compileCaps f                 env  =  (f, \_      ->  compileC f env)
 
 compileLet :: GmCompiler -> [(Name, CoreExpr)] -> GmCompiler
 compileLet comp defs expr env =
