@@ -482,6 +482,8 @@ compileE (EAp (EAp (EVar opn) e0) e1) env
 compileE (EAp (EVar "negate") e) env = compileE e env ++ [Neg]
 compileE (EAp (EAp (EAp (EVar "if") e0) e1) e2) env =
   compileE e0 env ++ [Cond (compileE e1 env) (compileE e2 env)]
+compileE (ECase e alts) env =
+  compileE e env ++ [Casejump (compileAlts compileE' alts env)]
 compileE e env = compileC e env ++ [Eval]
 
 compileC :: GmCompiler
