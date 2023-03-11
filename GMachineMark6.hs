@@ -127,14 +127,12 @@ data Node
   | NGlobal Int GmCode   -- Globals
   | NInd Addr            -- Indirections
   | NConstr Int [Addr]
-  deriving (Eq, Show)
+  deriving Show
 
-{-
 instance Eq Node
   where
     NNum a    ==  NNum b    =  a == b
-    NAp a b   ==  NAp c d   =  False
- -}
+    _         ==  _         =  False
 
 type GmGlobals = Assoc Name Addr
 
