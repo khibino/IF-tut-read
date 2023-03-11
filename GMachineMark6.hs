@@ -484,6 +484,9 @@ compileE (EAp (EAp (EAp (EVar "if") e0) e1) e2) env =
   compileE e0 env ++ [Cond (compileE e1 env) (compileE e2 env)]  {- Fig 3.12  p.127 -}
 compileE (ECase e alts) env =
   compileE e env ++ [Casejump (compileAlts compileE' alts env)]  {- Fig 3.14  p.134 -}
+compileE e@(EAp {}) env
+  | EConstr {} <- f  = concatI (++)  {- Fig 3.14  p.134  Pack -}
+  where (f, concatI) = compileCaps e env
 compileE e env = compileC e env ++ [Eval]  {- Fig 3.12  p.127 -}
 
 compileC :: GmCompiler
@@ -493,15 +496,15 @@ compileC (EVar v)     env
   where n = aLookup env v (error "compileC.EVar: Can't happen")
 compileC (ENum n)     env   =  [Pushint n]           {- Fig 3.10  p.114, Fig 3.3  p.100 -}
 compileC e@(EAp {})   env   =  case f of
-  EConstr {}  ->  concatI (\i2 i1 -> i2 ++ i1 ++ [Mkap])
-  _           ->  concatI (++)
+  EConstr {}  ->  concatI (++)
+  _           ->  concatI (\i2 i1 -> i2 ++ i1 ++ [Mkap])
   where (f, concatI) = compileCaps e env
 compileC (ELet recursive defs e) env
   | recursive  = compileLetrec compileC defs e env  {- Fig 3.10  p.114 -}
   | otherwise  = compileLet    compileC defs e env  {- Fig 3.10  p.114 -}
 
 compileCaps :: CoreExpr -> GmEnvironment -> (CoreExpr, (GmCode -> GmCode -> GmCode) -> GmCode)
-compileCaps (f@(EConstr t n)) env  =  (f, \_      ->  [Pack t n])  {- Fig 3.14  p.134 -}
+compileCaps (f@(EConstr t n)) env  =  (f, \_      ->  [Pack t n])  {- Fig 3.14  p.134  Pack -}
 compileCaps (EAp e1 e2)       env  =  (f, \ (<+>) ->  compileC e2 env <+> concatI1 (<+>))   {- Fig 3.10  p.114, Fig 3.3  p.100 -}
   where (f, concatI1) = compileCaps e1 (argOffset 1 env)
 compileCaps f                 env  =  (f, \_      ->  compileC f env)
