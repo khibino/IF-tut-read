@@ -296,13 +296,13 @@ compileR e env = compileC e env ++ [Update n, Pop n, Unwind]  {- Fig 3.6  p.109 
 
 compileC :: GmCompiler
 compileC (EVar v)     env
-  | v `elem` (aDomain env)  =  [Push n]              {- Fig 3.3  p.100, Fig 3.10  p.114 -}
-  | otherwise               =  [Pushglobal v]        {- Fig 3.3  p.100, Fig 3.10  p.114 -}
+  | v `elem` (aDomain env)  =  [Push n]              {- Fig 3.10  p.114, Fig 3.3  p.100 -}
+  | otherwise               =  [Pushglobal v]        {- Fig 3.10  p.114, Fig 3.3  p.100 -}
   where n = aLookup env v (error "compileC.EVar: Can't happen")
-compileC (ENum n)     env   =  [Pushint n]           {- Fig 3.3  p.100, Fig 3.10  p.114 -}
+compileC (ENum n)     env   =  [Pushint n]           {- Fig 3.10  p.114, Fig 3.3  p.100 -}
 compileC (EAp e1 e2)  env   =  compileC e2 env ++
                                compileC e1 (argOffset 1 env) ++
-                               [Mkap]                {- Fig 3.3  p.100, Fig 3.10  p.114 -}
+                               [Mkap]                {- Fig 3.10  p.114, Fig 3.3  p.100 -}
 compileC (ELet recursive defs e) env
   | recursive  = compileLetrec compileC defs e env
   | otherwise  = compileLet    compileC defs e env
