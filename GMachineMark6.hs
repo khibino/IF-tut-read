@@ -385,29 +385,26 @@ cond i1 i2 state = putCode (ni ++ i) $ putStack s state {- rule 3.27 -} {- rule 
         i = getCode state
 
 pack :: Int -> Int -> (GmState -> GmState)
-pack t n state = putStack (stkPush a s) (putHeap h state)
+pack t n state = putStack (stkPush a s) (putHeap h state)  {- rule 3.30 -}
   where (as, s) = stkPopN n (getStack state)
         (h, a) = hAlloc (getHeap state) (NConstr t as)
-        {- rule 3.30 -}
 
 casejump :: [(Int, GmCode)] -> GmState -> GmState
 casejump jm state = case hLookup h a of
   NConstr t _ss  ->  case lookup t jm of
     Nothing  ->  error $ "casejump: tag not found: " ++ show t
-    Just i'  ->  putCode (i' ++ getCode state) state
+    Just i'  ->  putCode (i' ++ getCode state) state  {- rule 3.31 -}
   n          ->  error $ "casejump: constructor not found: " ++ show n
   where (a, _s) = stkPop (getStack state)
         h = getHeap state
-        {- rule 3.31 -}
 
 split :: Int -> GmState -> GmState
 split n state = case hLookup (getHeap state) a of
   NConstr _t as
-    | length as == n  ->  putStack (foldr stkPush s as) state
+    | length as == n  ->  putStack (foldr stkPush s as) state  {- rule 3.32 -}
     | otherwise       ->  error $ "split: argument count mismatch: " ++ show (length as) ++ " =/= " ++ show n
   node                ->  error $ "split: constructor not found: " ++ show node
   where (a, s) = stkPop (getStack state)
-        {- rule 3.32 -}
 
 print_ :: GmState -> GmState
 print_ state = case hLookup (getHeap state) a of
