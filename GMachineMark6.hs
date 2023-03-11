@@ -1,5 +1,5 @@
 {-# LANGUAGE NPlusKPatterns #-}
-module GMachineMark4 where
+module GMachineMark6 where
 
 import Language
 import Utils
@@ -304,9 +304,13 @@ unwind state =
             where ((i',s'), dump') = stkPop dump
         newState (NAp a1 _a2) = putCode [Unwind] (putStack (a1<:>a<:>as) state)
         newState (NGlobal n c)
-          | depth as < n   =  error "Unwinding with too few arguments"
+          | k < n
+          , (ak, _) <- stkPop $ discard (k - 1) as
+          , ((i,s), dump') <- stkPop dump
+                           =  putCode i $ putStack (stkPush ak s) $ putDump dump' state  {- rule 3.29 -}  {- exercise 3.29 -}
           | otherwise      =  putCode c $ putStack rstack state  {- rule 3.19, updated from rule 3.12 -}
-          where rstack = rearrange n (getHeap state) $ getStack state  {- exercise 3.12 -}
+          where k = depth as
+                rstack = rearrange n (getHeap state) $ getStack state  {- exercise 3.12 -}
         newState (NInd a1) =  putCode [Unwind] (putStack (a1<:>as) state)
         -- newState  n        =  error $ "unwind.newState: unknown node: " ++ show n
 
@@ -390,6 +394,13 @@ print_ state = case hLookup (getHeap state) a of
 
 ---
 
+builtInDyadic :: Assoc Name Instruction
+builtInDyadic =
+  [ ("+", Add), ("-", Sub), ("*", Mul), ("div", Div)
+  , ("==", Eq), ("~=", Ne), (">=", Ge)
+  , (">", Gt), ("<=", Le), ("<", Lt)
+  ]
+
 -- Compiling a program
 
 compile :: CoreProgram -> GmState
@@ -430,8 +441,25 @@ compileRslide :: GmCompiler
 compileRslide e env = compileC e env ++ [Slide (length env + 1), Unwind]
 
 compileR :: GmCompiler
-compileR e env = compileC e env ++ [Update n, Pop n, Unwind]
+compileR e env = compileE e env ++ [Update n, Pop n, Unwind] {- exercise 3.28 -}
   where n = length env
+
+compileE' :: Int -> GmCompiler
+compileE' offset expr env =
+  [Split offset] ++ compileE expr env ++ [Slide offset]
+
+-- exercise 3.28
+compileE :: GmCompiler
+compileE (ENum n) _env =  [Pushint n]
+compileE (ELet recursive defs e) env
+  | recursive  = compileLetrec compileE defs e env
+  | otherwise  = compileLet    compileE defs e env
+compileE (EAp (EAp (EVar opn) e0) e1) env
+  | Just op <- lookup opn builtInDyadic = compileE e1 env ++ compileE e0 env ++ [op]
+compileE (EAp (EVar "negate") e) env = compileE e env ++ [Neg]
+compileE (EAp (EAp (EAp (EVar "if") e0) e1) e2) env =
+  compileE e0 env ++ [Cond (compileE e1 env) (compileE e2 env)]
+compileE e env = compileC e env ++ [Eval]
 
 compileC :: GmCompiler
 compileC (EVar v)     env
@@ -484,12 +512,6 @@ compileAlts :: (Int -> GmCompiler)
 compileAlts comp alts env =
   [ (tag, comp (length names) body (zip names [0..] ++ argOffset (length names) env))
   | (tag, names, body) <- alts]
-
-compileE' :: Int -> GmCompiler
-compileE' offset expr env =
-  [Split offset] ++ compileE expr env ++ [Slide offset]
-
-compileE = undefined
 
 ---
 
@@ -733,11 +755,9 @@ showNode s a node   = case node of
   NAp a1 a2    ->  iConcat
                    [ iStr "Ap ", showAddr a1
                    , iStr " ",   showAddr a2 ]
-  NInd a1      ->  iConcat [iStr "Ind ", showAddr a1]
+  NInd a1      ->  iConcat [iStr "Ind ", showAddr a1]  {- exercise 3.8 -}
   NConstr t as ->  iConcat [ iStr "Cons ", iNum t, iStr " ["
                            , iInterleave (iStr ", ") (map showAddr as), iStr "]" ]
-
-  -- exercise 3.8
 
 {-
 debugNestedAp :: Heap Node -> Node -> IseqRep
