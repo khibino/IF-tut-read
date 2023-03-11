@@ -249,7 +249,7 @@ initialCode = [Pushglobal "main", Unwind]
 
 compileSc :: (Name, [Name], CoreExpr) -> GmCompiledSC
 compileSc (name, env, body) =
-  (name, length env, compileR body $ zip env [0..])
+  (name, length env, compileR body $ zip env [0..])  {- Fig 3.3  p.100 -}
 
 type GmEnvironment = Assoc Name Int
 type GmCompiler = CoreExpr -> GmEnvironment -> GmCode
@@ -259,18 +259,18 @@ compileRslide e env = compileC e env ++ [Slide (length env + 1), Unwind]
 
 {- exercise 3.10 -}
 compileR :: GmCompiler
-compileR e env = compileC e env ++ [Update n, Pop n, Unwind]
+compileR e env = compileC e env ++ [Update n, Pop n, Unwind]  {- Fig 3.6  p.109 -}
   where n = length env
 
 compileC :: GmCompiler
 compileC (EVar v)     env
-  | v `elem` (aDomain env)  =  [Push n]
-  | otherwise               =  [Pushglobal v]
+  | v `elem` (aDomain env)  =  [Push n]              {- Fig 3.3  p.100 -}
+  | otherwise               =  [Pushglobal v]        {- Fig 3.3  p.100 -}
   where n = aLookup env v (error "compileC.EVar: Can't happen")
-compileC (ENum n)     env   =  [Pushint n]
+compileC (ENum n)     env   =  [Pushint n]           {- Fig 3.3  p.100 -}
 compileC (EAp e1 e2)  env   =  compileC e2 env ++
                                compileC e1 (argOffset 1 env) ++
-                               [Mkap]
+                               [Mkap]                {- Fig 3.3  p.100 -}
 
 argOffset :: Int -> GmEnvironment -> GmEnvironment
 argOffset n env = [(v, n+m) | (v,m) <- env]
