@@ -221,6 +221,7 @@ dispatch = d
 
     d (Pack t n)     =  pack t n
     d (Casejump jm)  =  casejump jm
+    d (Split n)      =  split n
     d Print          =  print_
 
 pushglobal :: Name -> GmState -> GmState
@@ -398,6 +399,15 @@ casejump jm state = case hLookup h a of
   where (a, _s) = stkPop (getStack state)
         h = getHeap state
         {- rule 3.31 -}
+
+split :: Int -> GmState -> GmState
+split n state = case hLookup (getHeap state) a of
+  NConstr _t as
+    | length as == n  ->  putStack (foldr stkPush s as) state
+    | otherwise       ->  error $ "split: argument count mismatch: " ++ show (length as) ++ " =/= " ++ show n
+  node                ->  error $ "split: constructor not found: " ++ show node
+  where (a, s) = stkPop (getStack state)
+        {- rule 3.32 -}
 
 print_ :: GmState -> GmState
 print_ state = case hLookup (getHeap state) a of
