@@ -219,6 +219,7 @@ dispatch = d
 
     d (Cond i1 i2)   =  cond i1 i2
 
+    d (Pack t n)     =  pack t n
     d Print          =  print_
 
 pushglobal :: Name -> GmState -> GmState
@@ -380,6 +381,12 @@ cond i1 i2 state = putCode (ni ++ i) $ putStack s state {- rule 3.27 -} {- rule 
           NNum 0  -> i2
           n       -> error $ "cond: not expected NNum node: " ++ show n
         i = getCode state
+
+pack :: Int -> Int -> (GmState -> GmState)
+pack t n state = putStack (stkPush a s) (putHeap h state)
+  where (as, s) = stkPopN n (getStack state)
+        (h, a) = hAlloc (getHeap state) (NConstr t as)
+        {- rule 3.30 -}
 
 print_ :: GmState -> GmState
 print_ state = case hLookup (getHeap state) a of
