@@ -487,6 +487,10 @@ compileE (ECase e alts) env =
 compileE e@(EAp {}) env
   | EConstr {} <- f  = concatI (++)  {- Fig 3.14  p.134  Pack -}
   where (f, concatI) = compileCaps e env
+  {- Figure 3.14 のコンパイル規則によると、
+     f が EConstr の場合は compileE と compileC は等しいと考えられる.
+     しかし、それ以外の、たとえば関数適用の場合には以前の規則が適用されると考えられる.
+     するとデフォルトの規則により末尾に Eval が付くかどうかが異なることになる. -}
 compileE e env = compileC e env ++ [Eval]  {- Fig 3.12  p.127 -}
 
 compileC :: GmCompiler
