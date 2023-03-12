@@ -486,7 +486,7 @@ compileE (ECase e alts) env =
   compileE e env ++ [Casejump (compileAlts compileE' alts env)]  {- Fig 3.14  p.134 -}
 compileE e@(EAp {}) env
   | EConstr {} <- f  = concatI (++)  {- Fig 3.14  p.134  Pack -}
-  where (f, concatI) = compileCaps e env
+  where (f, concatI) = compileCaps e env 0
   {- Figure 3.14 のコンパイル規則によると、
      f が EConstr の場合は compileE と compileC は等しいと考えられる.
      しかし、それ以外の、たとえば関数適用の場合には以前の規則が適用されると考えられる.
@@ -502,16 +502,17 @@ compileC (ENum n)     env   =  [Pushint n]           {- Fig 3.10  p.114, Fig 3.3
 compileC e@(EAp {})   env   =  case f of
   EConstr {}  ->  concatI (++)
   _           ->  concatI (\i2 i1 -> i2 ++ i1 ++ [Mkap])
-  where (f, concatI) = compileCaps e env
+  where (f, concatI) = compileCaps e env 0
 compileC (ELet recursive defs e) env
   | recursive  = compileLetrec compileC defs e env  {- Fig 3.10  p.114 -}
   | otherwise  = compileLet    compileC defs e env  {- Fig 3.10  p.114 -}
 
-compileCaps :: CoreExpr -> GmEnvironment -> (CoreExpr, (GmCode -> GmCode -> GmCode) -> GmCode)
-compileCaps (f@(EConstr t n)) env  =  (f, \_      ->  [Pack t n])  {- Fig 3.14  p.134  Pack -}
-compileCaps (EAp e1 e2)       env  =  (f, \ (<+>) ->  compileC e2 env <+> concatI1 (<+>))   {- Fig 3.10  p.114, Fig 3.3  p.100 -}
-  where (f, concatI1) = compileCaps e1 (argOffset 1 env)
-compileCaps f                 env  =  (f, \_      ->  compileC f env)
+compileCaps :: CoreExpr -> GmEnvironment -> Int -> (CoreExpr, (GmCode -> GmCode -> GmCode) -> GmCode)
+compileCaps (f@(EConstr t n)) env c
+  | c == n                           =  (f, \_      ->  [Pack t n])  {- Fig 3.14  p.134  Pack -}
+compileCaps (EAp e1 e2)       env c  =  (f, \ (<+>) ->  compileC e2 env <+> concatI1 (<+>))   {- Fig 3.10  p.114, Fig 3.3  p.100 -}
+  where (f, concatI1) = compileCaps e1 (argOffset 1 env) (c+1)
+compileCaps f                 env _  =  (f, \_      ->  compileC f env)   {- function and unsaturated constructor case, p.137, last of section 3.8.7 -}
 
 compileLet :: GmCompiler -> [(Name, CoreExpr)] -> GmCompiler
 compileLet comp defs expr env =
