@@ -471,6 +471,14 @@ compileE' :: Int -> GmCompiler
 compileE' offset expr env =
   [Split offset] ++ compileE expr env ++ [Slide offset]  {- Fig 3.14  p.134  𝓐 scheme -}
 
+-- |
+--
+-- >>> compileE (EAp (EAp (EVar "f") (ENum 3)) (ENum 4)) []
+-- [Pushint 4,Pushint 3,Pushglobal "f",Mkap,Mkap,Eval]
+--
+-- >>> compileE (EAp (EAp (EConstr 1 2) (ENum 3)) (ENum 4)) []
+-- [Pushint 4,Pushint 3,Pack 1 2]
+--
 -- exercise 3.28
 compileE :: GmCompiler
 compileE (ENum n) _env =  [Pushint n]  {- Fig 3.12  p.127 -}
@@ -493,6 +501,13 @@ compileE e@(EAp {}) env
      するとデフォルトの規則により末尾に Eval が付くかどうかが異なることになる. -}
 compileE e env = compileC e env ++ [Eval]  {- Fig 3.12  p.127 -}
 
+-- |
+--
+-- >>> compileC (EAp (EAp (EVar "f") (ENum 3)) (ENum 4)) []
+-- [Pushint 4,Pushint 3,Pushglobal "f",Mkap,Mkap]
+--
+-- >>> compileC (EAp (EAp (EConstr 1 2) (ENum 3)) (ENum 4)) []
+-- [Pushint 4,Pushint 3,Pack 1 2]
 compileC :: GmCompiler
 compileC (EVar v)     env
   | v `elem` (aDomain env)  =  [Push n]              {- Fig 3.10  p.114, Fig 3.3  p.100 -}
