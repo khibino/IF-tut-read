@@ -704,14 +704,18 @@ showInstruction (Alloc n)       =  iStr "Alloc " `iAppend` iNum n  {- exercise 3
 showInstruction (Update n)      =  iStr "Update " `iAppend` iNum n
 showInstruction (Pop n)         =  iStr "Pop " `iAppend` iNum n
 showInstruction (Cond xs ys)    =  iStr "Code " `iAppend` iCodes xs `iAppend` iCodes ys
-  where iCodes cs = case cs of
-          []    ->  iStr "[]"
-          x:_   ->  iConcat [iStr "[", showInstruction x, iStr " ... ]"]
+showInstruction (Pack t n)      =  iStr "Pack " `iAppend` iNum t `iAppend` iStr " " `iAppend` iNum n
+showInstruction (Casejump alts) =  foldl (\s alt -> s `iAppend` iStr " " `iAppend` iAlt alt) (iStr "Casejump") alts
+  where iAlt (t, xs) = iStr "[" `iAppend` iNum t `iAppend` iStr " -> " `iAppend` iCodes xs `iAppend` iStr "]"
+showInstruction (Split n)       =  iStr "Split " `iAppend` iNum n
 showInstruction  Print          =  iStr "Print"
 showInstruction  ins
   | ins `elem` [ Eval, Add, Sub, Mul, Div, Neg
                , Eq, Ne, Lt, Le, Gt, Ge]  =  iStr $ show ins
   | otherwise                             =  error $ "showInstruction: unknown instruction: " ++ show ins
+
+iCodes :: [Instruction] -> IseqRep
+iCodes = shortShowInstructions 2
 
 -- showStack :: Bool -> GmHeap -> GmStack -> IseqRep
 showStack :: GmState -> IseqRep
