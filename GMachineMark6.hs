@@ -368,9 +368,9 @@ arithmetic2  = primitive2 boxInteger unboxInteger
 boxBoolean :: Bool -> GmState -> GmState
 boxBoolean b state =
   putStack (stkPush a $ getStack state) (putHeap h' state)
-  where (h', a) = hAlloc (getHeap state) bcon
-        bcon | b         = NConstr 2 [] {- True  is EConstr 2 0 -}  {- rule 3.36 -}
-             | otherwise = NConstr 1 [] {- False is EConstr 1 0 -}  {- rule 3.36 -}
+  where (h', a) = hAlloc (getHeap state) (NConstr b' [])
+        b' | b         = 2  {- True  is EConstr 2 0 -}  {- rule 3.36 -}
+           | otherwise = 1  {- False is EConstr 1 0 -}  {- rule 3.36 -}
 
 comparison :: (Int -> Int -> Bool) -> GmState -> GmState
 comparison = primitive2 boxBoolean unboxInteger
