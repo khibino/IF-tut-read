@@ -1017,9 +1017,7 @@ check expect prog
   where
     states = take limit . eval . compile . parse $ prog
     limit = 1000000
-    -- (   _, lastStack, _, lHeap, _, _) = last states
-    lastStack = undefined
-    lHeap = undefined
+    (   _o, _i, lastStack, _d, lHeap, _, _) = last states
     (a, _) = stkPop lastStack
     lastv = hLookup lHeap a :: Node
 
