@@ -434,7 +434,7 @@ compile program =
 buildInitialHeap :: CoreProgram -> (GmHeap, GmGlobals)
 buildInitialHeap program =
   mapAccumL allocateSc hInitial compiled
-  where compiled = map compileSc (preludeDefs ++ program) ++ compiledPrimitives
+  where compiled = map compileSc (preludeDefs ++ extraPreludeDefs ++ program) ++ compiledPrimitives
         -- compiled = map compileSc program
 
 type GmCompiledSC = (Name, Int, GmCode)
@@ -488,8 +488,8 @@ compileE (ELet recursive defs e) env
 compileE (EAp (EAp (EVar opn) e0) e1) env
   | Just op <- lookup opn builtInDyadic = compileE e1 env ++ compileE e0 env ++ [op]  {- Fig 3.12  p.127 -}
 compileE (EAp (EVar "negate") e) env = compileE e env ++ [Neg]  {- Fig 3.12  p.127 -}
-compileE (EAp (EAp (EAp (EVar "if") e0) e1) e2) env =
-  compileE e0 env ++ [Cond (compileE e1 env) (compileE e2 env)]  {- Fig 3.12  p.127 -}
+-- compileE (EAp (EAp (EAp (EVar "if") e0) e1) e2) env =
+--   compileE e0 env ++ [Cond (compileE e1 env) (compileE e2 env)]  {- Fig 3.12  p.127 -}
 compileE (ECase e alts) env =
   compileE e env ++ [Casejump (compileAlts compileE' alts env)]  {- Fig 3.14  p.134 -}
 compileE e@(EAp {}) env
@@ -583,7 +583,7 @@ compiledPrimitives =
   , op2 "<=" Le
   , op2 ">"  Gt
   , op2 ">=" Ge
-  , ("if", 3, [Push 0, Eval, Cond [Push 1] [Push 2], Update 3, Pop 3, Unwind])
+  --- , ("if", 3, [Push 0, Eval, Cond [Push 1] [Push 2], Update 3, Pop 3, Unwind])
   ]
   where
     op2 n i = (n, 2, [Push 1, Eval, Push 1, Eval, i, Update 2, Pop 2, Unwind])
@@ -619,8 +619,12 @@ extraPreludeDefs :: CoreProgram
 extraPreludeDefs =
   [ ("False", [], EConstr 1 0)
   , ("True", [], EConstr 2 0)
-  , ("and",["x","y"],EAp (EAp (EAp (EVar "if") (EVar "x")) (EVar "y")) (EVar "False"))
 
+  -- section 3.8.6
+  , ("if", ["c", "t", "f"], ECase (EVar "c") [(1, [], EVar "f"), (2, [], EVar "t")])
+
+  {-
+  , ("and",["x","y"],EAp (EAp (EAp (EVar "if") (EVar "x")) (EVar "y")) (EVar "False"))
   -- exercise 2.20
   , ("or",["x","y"],EAp (EAp (EAp (EVar "if") (EVar "x")) (EVar "True")) (EVar "y"))
   , ("xor",["x","y"],EAp (EAp (EAp (EVar "if") (EAp (EAp (EVar "and") (EVar "x")) (EVar "y"))) (EVar "False")) (EAp (EAp (EVar "or") (EVar "x")) (EVar "y")))
@@ -641,6 +645,7 @@ extraPreludeDefs =
 
   , ("printList",["xs"],EAp (EAp (EAp (EVar "caseList") (EVar "xs")) (EVar "stop")) (EVar "printCons"))
   , ("printCons",["h","t"],EAp (EAp (EVar "print") (EVar "h")) (EAp (EVar "printList") (EVar "t")))
+   -}
   ]
 
 showResults :: [GmState] -> String
