@@ -313,6 +313,8 @@ unwind state =
           where k = depth as
                 rstack = rearrange n (getHeap state) $ getStack state  {- exercise 3.12 -}
         newState (NInd a1) =  putCode [Unwind] (putStack (a1<:>as) state)
+        newState (NConstr _n _as) = putCode i' $ putStack (a<:>s') $ putDump dump' state  {- rule 3.35 -}
+          where ((i',s'), dump') = stkPop dump
         -- newState  n        =  error $ "unwind.newState: unknown node: " ++ show n
 
 -- exercise 3.12
