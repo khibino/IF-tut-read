@@ -492,6 +492,7 @@ compileE (EAp (EVar "negate") e) env = compileE e env ++ [Neg]  {- Fig 3.12  p.1
 --   compileE e0 env ++ [Cond (compileE e1 env) (compileE e2 env)]  {- Fig 3.12  p.127 -}
 compileE (ECase e alts) env =
   compileE e env ++ [Casejump (compileAlts compileE' alts env)]  {- Fig 3.14  p.134 -}
+compileE (EConstr t n) env  =  [Pack t n]
 compileE e@(EAp {}) env
   | EConstr {} <- f  = concatI (++)  {- Fig 3.14  p.134  Pack -}
   where (f, concatI) = compileCaps e env 0
@@ -514,6 +515,7 @@ compileC (EVar v)     env
   | otherwise               =  [Pushglobal v]        {- Fig 3.10  p.114, Fig 3.3  p.100 -}
   where n = aLookup env v (error "compileC.EVar: Can't happen")
 compileC (ENum n)     env   =  [Pushint n]           {- Fig 3.10  p.114, Fig 3.3  p.100 -}
+compileC (EConstr t n) env  =  [Pack t n]
 compileC e@(EAp {})   env   =  case f of
   EConstr {}  ->  concatI (++)
   _           ->  concatI (\i2 i1 -> i2 ++ i1 ++ [Mkap])
