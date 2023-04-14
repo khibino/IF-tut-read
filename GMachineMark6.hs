@@ -1035,8 +1035,7 @@ checks = do
     putLn s = putStrLn "" *> putStr s
 
 checkList :: [(Node, String)]
-checkList = []
- {-
+checkList =
   [ (NNum    1, "main = 1")      -- single value
 
   , (NNum    3, "main = S K K 3") -- supercombinator
@@ -1063,10 +1062,11 @@ checkList = []
   , (NNum    6, "fac n = if (n == 0) 1 (n * fac (n-1)) ;\
                 \main = fac 3")       -- if, recursive function
 
+ {-
   , (NNum    1, "main = fst (MkPair 1 2)") -- casePair
   , (NNum    2, "main = snd (MkPair 1 2)") -- casePair
   , (NNum    2, "main = fst (snd (fst (MkPair (MkPair 1 (MkPair 2 3)) 4)))") -- casePair nested
 
   , (NNum    3, "main = length (Cons 1 (Cons 2 (Cons 3 Nil)))") -- caseList
-  ]
  -}
+  ]
