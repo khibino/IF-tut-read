@@ -700,6 +700,7 @@ showState s =
   [ showOutput s, iNewline
   , showStack s, iNewline
   , showDump s, iNewline
+  , showVStack s, iNewline
   , showInstructions (getCode s), iNewline ]
 
 showOutput :: GmState -> IseqRep
@@ -777,6 +778,14 @@ showDumpItem (code, stack) =
   [ iStr "<"
   , shortShowInstructions 3 code, iStr ", "
   , shortShowStack stack,         iStr ">"
+  ]
+
+showVStack :: GmState -> IseqRep
+showVStack s =
+  iConcat
+  [ iStr "Vstack:["
+  , iInterleave (iStr ", ") (map iNum $ getVStack s)
+  , iStr "]"
   ]
 
 shortShowInstructions :: Int -> GmCode -> IseqRep
