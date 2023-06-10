@@ -127,6 +127,7 @@ data Node
   | NGlobal Int GmCode   -- Globals
   | NInd Addr            -- Indirections
   | NConstr Int [Addr]
+  | NgNode Int Int
   deriving Show
 
 instance Eq Node
@@ -225,10 +226,16 @@ dispatch = d
     d Print          =  print_
 
 pushglobal :: Name -> GmState -> GmState
-pushglobal f state =
-  {- rule 3.5 -}
-  putStack (a <:> getStack state) state
-  where a = aLookup (getGlobals state) f (error ("Undeclared globals " ++ f))
+pushglobal f state = case f `lookup` globals of
+  Nothing  ->  case gNodes of
+    []     ->  error $ "Undeclared globals " ++ f
+    [gn]   ->  putStack (a <:> getStack state) (putHeap heap state)  {- rule 3.38 -}
+      where (heap, a) = hAlloc (getHeap state) gn
+    _:_:_  ->  error $ "pushglobal: unknown pattern: " ++ show gNodes
+  Just a   ->  putStack (a <:> getStack state) state                 {- rule 3.5, rule 3.37 -}
+  where
+    globals = getGlobals state
+    gNodes = [ NgNode t n | (EConstr t n, []) <- pPack $ clex 0 f ]
 
 pushint :: Int -> GmState -> GmState
 pushint n state =
