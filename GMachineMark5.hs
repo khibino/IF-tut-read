@@ -895,9 +895,9 @@ check expect prog
   where
     states = take limit . eval . compile . parse $ prog
     limit = 1000000
-    -- (   _, lastStack, _, lHeap, _, _) = last states
-    lastStack = undefined
-    lHeap = undefined
+    (   _, lastStack, _, lHeap, _, _) = last states
+    -- lastStack = undefined
+    -- lHeap = undefined
     (a, _) = stkPop lastStack
     lastv = hLookup lHeap a :: Node
 
@@ -915,8 +915,7 @@ checks = do
     putLn s = putStrLn "" *> putStr s
 
 checkList :: [(Node, String)]
-checkList = []
- {-
+checkList =
   [ (NNum    1, "main = 1")      -- single value
 
   , (NNum    3, "main = S K K 3") -- supercombinator
@@ -938,6 +937,7 @@ checkList = []
   , (NNum    6, "double x = x + x ;\n\
                 \main = double (S K K 3)") -- indirection, supercombinator, plus nested
 
+  {-
   , (NNum    3, "main = if False 5 3") -- if
   , (NNum    5, "main = if True 5 3") -- if
   , (NNum    6, "fac n = if (n == 0) 1 (n * fac (n-1)) ;\
@@ -948,5 +948,5 @@ checkList = []
   , (NNum    2, "main = fst (snd (fst (MkPair (MkPair 1 (MkPair 2 3)) 4)))") -- casePair nested
 
   , (NNum    3, "main = length (Cons 1 (Cons 2 (Cons 3 Nil)))") -- caseList
+  -}
   ]
- -}
