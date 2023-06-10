@@ -524,7 +524,7 @@ compileC (EVar v)     env
   | otherwise               =  [Pushglobal v]        {- Fig 3.10  p.114, Fig 3.3  p.100 -}
   where n = aLookup env v (error "compileC.EVar: Can't happen")
 compileC (ENum n)     env   =  [Pushint n]           {- Fig 3.10  p.114, Fig 3.3  p.100 -}
-compileC (EConstr t n) env  =  [Pack t n]
+compileC (EConstr t n) env  =  [Pushglobal $ "Pack{" ++ show t ++ "," ++ show n ++ "}"]
 compileC e@(EAp {})   env   =  case f of
   EConstr {}  ->  concatI (++)
   _           ->  concatI (\i2 i1 -> i2 ++ i1 ++ [Mkap])
