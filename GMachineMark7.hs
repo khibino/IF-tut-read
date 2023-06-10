@@ -49,6 +49,7 @@ type GmState =
   , GmCode
   , GmStack
   , GmDump
+  , GmVStack
   , GmHeap
   , GmGlobals
   , GmStats
@@ -59,18 +60,18 @@ type GmOutput = [Char]
 type GmCode = [Instruction]
 
 getOutput :: GmState -> GmOutput
-getOutput (out, _i, _stack, _dump, _heap, _globals, _stats) = out
+getOutput (out, _i, _stack, _dump, _vstack, _heap, _globals, _stats) = out
 
 putOutput :: GmOutput -> GmState -> GmState
-putOutput out' (_out, i, stack, dump, heap, globals, stats) =
-  (out', i, stack, dump, heap, globals, stats)
+putOutput out' (_out, i, stack, dump, vstack, heap, globals, stats) =
+  (out', i, stack, dump, vstack, heap, globals, stats)
 
 getCode :: GmState -> GmCode
-getCode (_out, i, _stack, _dump, _heap, _globals, _stats) = i
+getCode (_out, i, _stack, _dump, _vstack, _heap, _globals, _stats) = i
 
 putCode :: GmCode -> GmState -> GmState
-putCode i' (out, _i, stack, dump, heap, globals, stats) =
-  (out, i', stack, dump, heap, globals, stats)
+putCode i' (out, _i, stack, dump, vstack, heap, globals, stats) =
+  (out, i', stack, dump, vstack, heap, globals, stats)
 
 data Instruction
   = Unwind
@@ -96,30 +97,39 @@ type GmStack = Stack Addr
 -- type GmStack = [Addr]
 
 getStack :: GmState -> GmStack
-getStack (_out, _i, stack, _dump, _heap, _globals, _stats) = stack
+getStack (_out, _i, stack, _dump, _vstack, _heap, _globals, _stats) = stack
 
 putStack :: GmStack -> GmState -> GmState
-putStack stack' (out, i, _stack, dump, heap, globals, stats) =
-  (out, i, stack', dump, heap, globals, stats)
+putStack stack' (out, i, _stack, dump, vstack, heap, globals, stats) =
+  (out, i, stack', dump, vstack, heap, globals, stats)
 
 type GmDump = Stack GmDumpItem
 type GmDumpItem = (GmCode, GmStack)
 
 getDump :: GmState -> GmDump
-getDump (_out, _i, _stack, dump, _heap, _globals, _stats) = dump
+getDump (_out, _i, _stack, dump, _vstack, _heap, _globals, _stats) = dump
 
 putDump :: GmDump -> GmState -> GmState
-putDump dump' (out, i, stack, _dump, heap, globals, stats) =
-  (out, i, stack, dump', heap, globals, stats)
+putDump dump' (out, i, stack, _dump, vstack, heap, globals, stats) =
+  (out, i, stack, dump', vstack, heap, globals, stats)
+
+type GmVStack = [Int]
+
+getVStack :: GmState -> GmVStack
+getVStack (_out, _i, _stack, _dump, vstack, _heap, _globals, _stats) = vstack
+
+putVStack :: GmVStack -> GmState -> GmState
+putVStack vstack' (out, i, stack, dump, _vstack, heap, globals, stats) =
+  (out, i, stack, dump, vstack', heap, globals, stats)
 
 type GmHeap = Heap Node
 
 getHeap :: GmState -> GmHeap
-getHeap (_out, _i, _stack, _dump, heap, _globals, _stats) = heap
+getHeap (_out, _i, _stack, _dump, _vstack, heap, _globals, _stats) = heap
 
 putHeap :: GmHeap -> GmState -> GmState
-putHeap heap' (out, i, stack, dump, _heap, globals, stats) =
-  (out, i, stack, dump, heap', globals, stats)
+putHeap heap' (out, i, stack, dump, vstack, _heap, globals, stats) =
+  (out, i, stack, dump, vstack, heap', globals, stats)
 
 data Node
   = NNum Int             -- Numbers
@@ -138,11 +148,11 @@ instance Eq Node
 type GmGlobals = Assoc Name Addr
 
 getGlobals :: GmState -> GmGlobals
-getGlobals (_out, _i, _stack, _dump, _heap, globals, _stats) = globals
+getGlobals (_out, _i, _stack, _dump, _vstack, _heap, globals, _stats) = globals
 
 putGlobals :: GmGlobals -> GmState -> GmState
-putGlobals globals' (out, i, stack, dump, heap, _globals, stats) =
-  (out, i, stack, dump, heap, globals', stats)
+putGlobals globals' (out, i, stack, dump, vstack, heap, _globals, stats) =
+  (out, i, stack, dump, vstack, heap, globals', stats)
 
 data GmStats =
   GmStats
@@ -160,11 +170,11 @@ statGetSteps :: GmStats -> Int
 statGetSteps = steps
 
 getStats :: GmState -> GmStats
-getStats (_out, _i, _stack, _dump, _heap, _globals, stats) = stats
+getStats (_out, _i, _stack, _dump, _vstack, _heap, _globals, stats) = stats
 
 putStats :: GmStats -> GmState -> GmState
-putStats stats' (out, i, stack, dump, heap, globals, _stats) =
-  (out, i, stack, dump, heap, globals, stats')
+putStats stats' (out, i, stack, dump, vstack, heap, globals, _stats) =
+  (out, i, stack, dump, vstack, heap, globals, stats')
 
 ---
 
@@ -437,7 +447,7 @@ builtInDyadic =
 
 compile :: CoreProgram -> GmState
 compile program =
-  ([], initialCode, Stack [] 0 0, Stack [] 0 0, heap, globals, statInitial)
+  ([], initialCode, Stack [] 0 0, Stack [] 0 0, [], heap, globals, statInitial)
   where (heap, globals) = buildInitialHeap program
 
 buildInitialHeap :: CoreProgram -> (GmHeap, GmGlobals)
@@ -1024,7 +1034,7 @@ check expect prog
   where
     states = take limit . eval . compile . parse $ prog
     limit = 1000000
-    (   _o, _i, lastStack, _d, lHeap, _, _) = last states
+    (   _o, _i, lastStack, _d, _vs, lHeap, _, _) = last states
     (a, _) = stkPop lastStack
     lastv = hLookup lHeap a :: Node
 
