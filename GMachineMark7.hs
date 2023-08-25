@@ -323,7 +323,7 @@ unwind state =
         newState (NAp a1 _a2) = putCode [Unwind] (putStack (a1<:>a<:>as) state)
         newState (NGlobal n c)
           | k < n
-          , (ak, _) <- stkPop $ discard (k - 1) as
+          , (ak, _) <- stkPop $ discard k $ getStack state
           , ((i,s), dump') <- stkPop dump
                            =  putCode i $ putStack (stkPush ak s) $ putDump dump' state  {- rule 3.29 -}  {- exercise 3.29 -}
           | otherwise      =  putCode c $ putStack rstack state  {- rule 3.19, updated from rule 3.12 -}
