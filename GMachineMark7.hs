@@ -1021,6 +1021,10 @@ testB32nfibx = "nfib n = if (n < 2) \
 testThunk = "fac n = if (n==0) 1 (n * fac (n-1)) ;\
             \main = K 2 (fac 5)"
 
+bug_mark6_unwind0_A = "main = I I 3"
+
+bug_mark6_unwind0_B = testB32nfib
+
 test_ :: Bool -> String -> IO ()
 test_ nestedDebug = putStrLn . showResults . eval . compile . parse
 -- test_ nestedDebug = putStrLn . showResults . eval . setDebug . compile . parse
