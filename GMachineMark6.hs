@@ -1052,6 +1052,7 @@ checkList =
   , (NNum    3, "main = S K K 3") -- supercombinator
   , (NNum    3, "id = S K K;\n\
                 \main = twice twice twice id 3") -- supercombinator nested
+  , (NNum    3, "main = I I 3") -- supercombinator without args
   , (NNum (-3), "main = negate 3") -- negate
   , (NNum    3, "main = negate (negate 3)") -- negate nested
   , (NNum    3, "main = 1 + 2")  -- plus
