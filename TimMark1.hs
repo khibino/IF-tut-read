@@ -88,6 +88,10 @@ type TimStats = Int
 
 ---
 
+data HowMuchToPrint = Full | Terse | None deriving Show
+
+---
+
 fAlloc   :: TimHeap -> [Closure] -> (TimHeap, FramePtr)
 fAlloc heap xs = (heap', FrameAddr addr)
   where
@@ -173,7 +177,7 @@ compileA  e        env = Code (compileR e env)
 ---
 
 runProg :: [Char] -> [Char]
-runProg = undefined
+runProg = showResults . eval . compile . parse
 
 compile :: CoreProgram -> TimState
 compile program =
@@ -202,6 +206,11 @@ eval state = state : rest_states
                 | otherwise      = eval next_state
     next_state = doAdmin (step state)
 
+fullRun :: [Char] -> [Char]
+fullRun = showFullResults . eval . compile . parse
+
+---
+
 doAdmin :: TimState -> TimState
 doAdmin state = applyToStats statIncSteps state
 
@@ -210,17 +219,18 @@ timFinal state = null $ instr_ state
 
 step :: TimState -> TimState
 step state@TimState{..} = case instr_ of
-  Take n : instr  | length stack_  >= n  -> state { instr_ = instr, fptr_ = fptr', stack_ = drop n stack_, heap_ = heap' }
-                  | otherwise            -> error "Too few args for Take instructions"
+  Take n : instr
+    | length stack_  >= n  -> state { instr_ = instr, fptr_ = fptr', stack_ = drop n stack_, heap_ = heap' }
+    | otherwise            -> error "Too few args for Take instructions"
     where (heap', fptr') = fAlloc heap_ (take n stack_)
 
-  [Enter am]                             -> state { instr_ = instr', fptr_ = fptr' }
+  [Enter am]               -> state { instr_ = instr', fptr_ = fptr' }
     where (instr', fptr') = amToClosure am fptr_ heap_ cstore_
-  Enter {} : instr                       -> error $ "instructions found after Enter: " ++ show instr
+  Enter {} : instr         -> error $ "instructions found after Enter: " ++ show instr
 
-  Push am : instr                        -> state { instr_ = instr, stack_ = amToClosure am fptr_ heap_ cstore_ : stack_ }
+  Push am : instr          -> state { instr_ = instr, stack_ = amToClosure am fptr_ heap_ cstore_ : stack_ }
 
-  []                                     -> error $ "instructions is []"
+  []                       -> error $ "instructions is []"
 
 amToClosure :: TimAMode -> FramePtr -> TimHeap -> CodeStore -> ([Instruction], FramePtr)
 amToClosure amode fptr heap cstore = case amode of
@@ -232,8 +242,124 @@ amToClosure amode fptr heap cstore = case amode of
 intCode :: [Instruction]
 intCode = []
 
-showResults :: [TimState] -> [Char]
-showResults = undefined
+---
 
-fullRun :: [Char] -> [Char]
-fullRun = undefined
+showFullResults :: [TimState] -> String
+showFullResults states =
+  concatMap iDisplay $
+  [ iStr "Supercombinator definitions", iNewline, iNewline
+  , showSCDefns first_state, iNewline, iNewline
+  , iStr "State transitions", iNewline ]
+  ++
+  (iLaynList $ map showState states)
+  ++
+  [ iNewline, iNewline ]
+  ++
+  [ showStats $ last states ]
+  where
+    (first_state:_rest_states) = states
+
+showResults :: [TimState] -> [Char]
+showResults states =
+  iDisplay $ iConcat [ showState last_state, iNewline, iNewline, showStats last_state ]
+  where
+    last_state = last states
+
+showSCDefns :: TimState -> IseqRep
+showSCDefns TimState{..} = iInterleave iNewline $ map showSC cstore_
+
+showSC :: (Name, [Instruction]) -> IseqRep
+showSC (name, il) =
+  iConcat
+  [ iStr "Code for ", iStr name, iStr ":", iNewline
+  , iStr "   ", showInstructions Full il, iNewline, iNewline
+  ]
+
+showState :: TimState -> IseqRep
+showState TimState{..} =
+  iConcat
+  [ iStr "Code:   ", showInstructions Terse instr_, iNewline
+  , showFrame heap_ fptr_
+  , showStack stack_
+  , showValueStack vstack_
+  , showDump dump_
+  , iNewline
+  ]
+
+showFrame :: TimHeap -> FramePtr -> IseqRep
+showFrame _heap FrameNull = iStr "Null frame ptr" <> iNewline
+showFrame heap (FrameAddr addr) =
+  iConcat
+  [ iStr "Frame: <"
+  , iIndent (iInterleave iNewline $ map showClosure $ fList $ hLookup heap addr)
+  , iStr ">", iNewline
+  ]
+showFrame _heap (FrameInt n) = iConcat [ iStr "Frame ptr (int): ", iNum n, iNewline ]
+
+showStack :: TimStack -> IseqRep
+showStack stack =
+  iConcat
+  [ iStr "Arg stack: ["
+  , iIndent (iInterleave iNewline $ map showClosure stack)
+  , iStr "]", iNewline
+  ]
+
+showValueStack :: TimValueStack -> IseqRep
+showValueStack _vstack = iNil
+
+showDump :: TimDump -> IseqRep
+showDump _dump = iNil
+
+showClosure :: Closure -> IseqRep
+showClosure (i, f) =
+  iConcat
+  [ iStr "(", showInstructions Terse i, iStr ", "
+  , showFramePtr f, iStr ")"
+  ]
+
+showFramePtr :: FramePtr -> IseqRep
+showFramePtr FrameNull = iStr "null"
+showFramePtr (FrameAddr a) = iStr (show a)
+showFramePtr (FrameInt n) = iStr "int " <> iNum n
+
+showStats :: TimState -> IseqRep
+showStats TimState{..} =
+  iConcat
+  [ iStr "Steps taken = ", iNum (statGetSteps stats_), iNewline
+  , iStr "No of frames allocated = ", iNum (size heap_)
+  , iNewline
+  ]
+
+showInstructions :: HowMuchToPrint -> [Instruction] -> IseqRep
+showInstructions None _il = iStr "{..}"
+showInstructions Terse il =
+  iConcat [ iStr "{", iIndent $ iInterleave (iStr ", ") body, iStr "}" ]
+  where
+    instrs = map (showInstruction None) il
+    body | length il <= nTerse = instrs
+         | otherwise           = (take nTerse instrs) ++ [iStr ".."]
+showInstructions Full il =
+  iConcat [ iStr "{ ", iIndent $ iInterleave sep instrs, iStr " }" ]
+  where
+    sep = iStr "," <> iNewline
+    instrs = map (showInstruction Full) il
+
+showInstruction :: HowMuchToPrint -> Instruction -> IseqRep
+showInstruction _d (Take m)  = iStr "Take "  <> iNum m
+showInstruction  d (Enter x) = iStr "Enter " <> showArg d x
+showInstruction  d (Push x)  = iStr "Push "  <> showArg d x
+
+showArg :: HowMuchToPrint -> TimAMode -> IseqRep
+showArg d a = case a of
+  Arg m       -> iStr "Arg "  <> iNum m
+  Code il     -> iStr "Code " <> showInstructions d il
+  Label s     -> iStr "Label " <> iStr s
+  IntConst n  -> iStr "IntConst " <> iNum n
+
+nTerse :: Int
+nTerse = 3
+
+---
+
+test :: String -> IO ()
+test = putStr . fullRun
