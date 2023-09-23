@@ -363,3 +363,10 @@ nTerse = 3
 
 test :: String -> IO ()
 test = putStr . fullRun
+
+---
+
+{- exercise 4.1 -}
+testEx4_1_a = "main = S K K 4"
+testEx4_1_b = "id = S K K ; id1 = id id ; main = id1 4"
+testEx4_1_a, testEx4_1_b :: String
