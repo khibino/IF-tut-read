@@ -12,6 +12,40 @@ import Data.Either (isLeft)
 
 ---
 
+data Stack a =
+  Stack
+  { list :: [a]
+  , depth :: Int
+  , maxDepth :: Int
+  }
+  deriving Show
+
+stkOfList :: [a] -> Int -> Stack a
+stkOfList xs md = Stack { list = xs, depth = length xs, maxDepth = md }
+
+stkPush :: a -> Stack a -> Stack a
+stkPush x Stack { list = xs, depth = d, maxDepth = maxd } =
+  Stack { list = x:xs, depth = d+1, maxDepth = max (d + 1) maxd }
+
+stkPop :: Stack a -> (a, Stack a)
+stkPop s@Stack { list = xs, depth = d } =
+  (head xs, s { list = tail xs, depth = d - 1})
+
+stkPopN :: Int -> Stack a -> ([a], Stack a)
+stkPopN n s@(Stack { list = xs, depth = d }) = (hd, s { list = tl, depth = max (d - n) 0 })
+  where (hd, tl) = splitAt n xs
+
+discard :: Int -> Stack a -> Stack a
+discard n s = snd $ stkPopN n s
+-- discard n s@(Stack { list = xs, depth = d }) = s { list = drop n xs, depth = max (d - n) 0 }
+
+(<:>) :: a -> Stack a -> Stack a
+(<:>) = stkPush
+
+infixr 5 <:>
+
+---
+
 data Instruction
   = Take Int
   | Enter TimAMode
@@ -75,7 +109,7 @@ data FramePtr
 
 ---
 
-type TimStack = [Closure]
+type TimStack = Stack Closure
 type Closure = ([Instruction], FramePtr)
 
 ---
@@ -151,7 +185,7 @@ statAddAllocated n = modify (ahsize_) (\x s -> s { ahsize_ = x }) (+ n)
 ---
 
 initialArgStack :: TimStack
-initialArgStack = []
+initialArgStack = Stack [] 0 0
 
 initialValueStack :: TimValueStack
 initialValueStack = DummyTimValueStack
@@ -237,10 +271,10 @@ timFinal state = null $ instr_ state
 step :: TimState -> TimState
 step state@TimState{..} = case instr_ of
   Take n : instr
-    | length stack_  >= n  -> applyToStats (statAddAllocated n)
-                              state { instr_ = instr, fptr_ = fptr', stack_ = drop n stack_, heap_ = heap' }
+    | depth stack_  >= n   -> applyToStats (statAddAllocated n)
+                              state { instr_ = instr, fptr_ = fptr', stack_ = discard n stack_, heap_ = heap' }
     | otherwise            -> error "Too few args for Take instructions"
-    where (heap', fptr') = fAlloc heap_ (take n stack_)
+    where (heap', fptr') = fAlloc heap_ (fst $ stkPopN n stack_)
 
   [Enter am]               -> applyToStats statIncExtime
                               state { instr_ = instr', fptr_ = fptr' }
@@ -248,7 +282,7 @@ step state@TimState{..} = case instr_ of
   Enter {} : instr         -> error $ "instructions found after Enter: " ++ show instr
 
   Push am : instr          -> applyToStats statIncExtime
-                              state { instr_ = instr, stack_ = amToClosure am fptr_ heap_ cstore_ : stack_ }
+                              state { instr_ = instr, stack_ = stkPush (amToClosure am fptr_ heap_ cstore_) stack_ }
 
   []                       -> error $ "instructions is []"
 
@@ -320,7 +354,7 @@ showStack :: TimStack -> IseqRep
 showStack stack =
   iConcat
   [ iStr "Arg stack: ["
-  , iIndent (iInterleave iNewline $ map showClosure stack)
+  , iIndent (iInterleave iNewline $ map showClosure $ list stack)
   , iStr "]", iNewline
   ]
 
@@ -350,6 +384,7 @@ showStats TimState{..} =
   {- exercise 4.2 -}
   , iStr "Execution time = ", iNum (extime_ stats_), iNewline
   , iStr "Allocated heap size = ", iNum (ahsize_ stats_), iNewline
+  , iStr "Max stack depth = ", iNum (maxDepth stack_), iNewline
   ]
 
 showInstructions :: HowMuchToPrint -> [Instruction] -> IseqRep
