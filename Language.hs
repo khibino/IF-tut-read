@@ -256,6 +256,12 @@ iLaynList seqs = map layItem (zip [1..] seqs)
     layItem (n, seq)
       = iConcat [ iFNum 4 n, iStr ") ", iIndent seq, iNewline ]
 
+instance Semigroup IseqRep where
+  (<>) = iAppend
+
+instance Monoid IseqRep where
+  mempty = iNil
+
 -- type Token = String
 type Token = (Int, String)  -- exercise 1.11
 
