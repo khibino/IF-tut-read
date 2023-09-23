@@ -93,6 +93,7 @@ data TimStats =
   TimStats
   { steps_ :: Int
   , extime_ :: Int
+  , ahsize_ :: Int
   }
   deriving Show
 
@@ -133,7 +134,7 @@ codeLookup cstore l =
 ---
 
 statInitial :: TimStats
-statInitial = TimStats { steps_ = 0, extime_ = 0 }
+statInitial = TimStats { steps_ = 0, extime_ = 0, ahsize_ = 0 }
 
 statIncSteps :: TimStats -> TimStats
 statIncSteps = modify (steps_) (\x s -> s { steps_ = x }) (+ 1)
@@ -143,6 +144,9 @@ statGetSteps = steps_
 
 statIncExtime :: TimStats -> TimStats
 statIncExtime = modify (extime_) (\x s -> s { extime_ = x }) (+ 1)
+
+statAddAllocated :: Int -> TimStats -> TimStats
+statAddAllocated n = modify (ahsize_) (\x s -> s { ahsize_ = x }) (+ n)
 
 ---
 
@@ -233,7 +237,8 @@ timFinal state = null $ instr_ state
 step :: TimState -> TimState
 step state@TimState{..} = case instr_ of
   Take n : instr
-    | length stack_  >= n  -> state { instr_ = instr, fptr_ = fptr', stack_ = drop n stack_, heap_ = heap' }
+    | length stack_  >= n  -> applyToStats (statAddAllocated n)
+                              state { instr_ = instr, fptr_ = fptr', stack_ = drop n stack_, heap_ = heap' }
     | otherwise            -> error "Too few args for Take instructions"
     where (heap', fptr') = fAlloc heap_ (take n stack_)
 
@@ -341,9 +346,10 @@ showStats :: TimState -> IseqRep
 showStats TimState{..} =
   iConcat
   [ iStr "Steps taken = ", iNum (statGetSteps stats_), iNewline
-  , iStr "Execution time = ", iNum (extime_ stats_), iNewline  {- exercise 4.2 -}
-  , iStr "No of frames allocated = ", iNum (size heap_)
-  , iNewline
+  , iStr "No of frames allocated = ", iNum (size heap_), iNewline
+  {- exercise 4.2 -}
+  , iStr "Execution time = ", iNum (extime_ stats_), iNewline
+  , iStr "Allocated heap size = ", iNum (ahsize_ stats_), iNewline
   ]
 
 showInstructions :: HowMuchToPrint -> [Instruction] -> IseqRep
