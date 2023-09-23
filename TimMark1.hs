@@ -208,9 +208,11 @@ compiledPrimitives = []
 type TimCompilerEnv = [(Name, TimAMode)]
 
 compileSC :: TimCompilerEnv -> CoreScDefn -> (Name, [Instruction])
-compileSC env (name, args, body) =
-  (name, Take (length args) : instructions)
+compileSC env (name, args, body)
+  | len == 0  =  (name, instructions)  {- exercise 4.3 -}
+  | otherwise =  (name, Take (length args) : instructions)
   where
+    len = length args
     instructions = compileR body new_env
     new_env = zip args (map Arg [1..]) ++ env
 
