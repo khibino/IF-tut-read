@@ -7,6 +7,11 @@ import Language
 
 ---
 
+import Control.Monad (when)
+import Data.Either (isLeft)
+
+---
+
 data Instruction
   = Take Int
   | Enter TimAMode
@@ -66,7 +71,7 @@ data FramePtr
   = FrameAddr Addr  -- The address of a frame
   | FrameInt Int    -- An integer value
   | FrameNull       -- Uninitialized
-  deriving Show
+  deriving (Eq, Show)
 
 ---
 
@@ -364,9 +369,41 @@ nTerse = 3
 test :: String -> IO ()
 test = putStr . fullRun
 
+check :: FramePtr -> String -> Either String String
+check expect prog
+  | length states == limit  =  Left  . unlines $ ("expect " ++ show expect) : showProg "too long: "
+  | lastv == expect         =  Right . unlines $ showProg "pass: " ++ [show lastv]
+  | otherwise               =  Left  . unlines $ ("expect " ++ show expect) : showProg "wrong: "
+  where
+    states = take limit . eval . compile . parse $ prog
+    limit = 100000
+    TimState{..} = last states
+    lastv = fptr_
+
+    showProg word =
+      zipWith (++)
+      (word : repeat (replicate (length word) ' '))
+      (lines prog)
+
 ---
 
 {- exercise 4.1 -}
 testEx4_1_a = "main = S K K 4"
 testEx4_1_b = "id = S K K ; id1 = id id ; main = id1 4"
 testEx4_1_a, testEx4_1_b :: String
+
+---
+
+checks :: IO ()
+checks = do
+  mapM_ (either putLn putLn) results
+  when (any isLeft results) $ fail "some checks failed!"
+  where
+    results = map (uncurry check) checkList
+    putLn s = putStrLn "" *> putStr s
+
+checkList :: [(FramePtr, String)]
+checkList =
+  [ (FrameInt 4, "main = S K K 4")
+  , (FrameInt 4, "id = S K K ; id1 = id id ; main = id1 4")
+  ]
