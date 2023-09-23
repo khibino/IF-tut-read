@@ -89,7 +89,12 @@ type Frame = [Closure]
 
 type CodeStore = Assoc Name [Instruction]
 
-type TimStats = Int
+data TimStats =
+  TimStats
+  { steps_ :: Int
+  , extime_ :: Int
+  }
+  deriving Show
 
 ---
 
@@ -128,13 +133,16 @@ codeLookup cstore l =
 ---
 
 statInitial :: TimStats
-statInitial = 0
+statInitial = TimStats { steps_ = 0, extime_ = 0 }
 
 statIncSteps :: TimStats -> TimStats
-statIncSteps s = s + 1
+statIncSteps = modify (steps_) (\x s -> s { steps_ = x }) (+ 1)
 
 statGetSteps :: TimStats -> Int
-statGetSteps s = s
+statGetSteps = steps_
+
+statIncExtime :: TimStats -> TimStats
+statIncExtime = modify (extime_) (\x s -> s { extime_ = x }) (+ 1)
 
 ---
 
@@ -229,11 +237,13 @@ step state@TimState{..} = case instr_ of
     | otherwise            -> error "Too few args for Take instructions"
     where (heap', fptr') = fAlloc heap_ (take n stack_)
 
-  [Enter am]               -> state { instr_ = instr', fptr_ = fptr' }
+  [Enter am]               -> applyToStats statIncExtime
+                              state { instr_ = instr', fptr_ = fptr' }
     where (instr', fptr') = amToClosure am fptr_ heap_ cstore_
   Enter {} : instr         -> error $ "instructions found after Enter: " ++ show instr
 
-  Push am : instr          -> state { instr_ = instr, stack_ = amToClosure am fptr_ heap_ cstore_ : stack_ }
+  Push am : instr          -> applyToStats statIncExtime
+                              state { instr_ = instr, stack_ = amToClosure am fptr_ heap_ cstore_ : stack_ }
 
   []                       -> error $ "instructions is []"
 
@@ -331,6 +341,7 @@ showStats :: TimState -> IseqRep
 showStats TimState{..} =
   iConcat
   [ iStr "Steps taken = ", iNum (statGetSteps stats_), iNewline
+  , iStr "Execution time = ", iNum (extime_ stats_), iNewline  {- exercise 4.2 -}
   , iStr "No of frames allocated = ", iNum (size heap_)
   , iNewline
   ]
