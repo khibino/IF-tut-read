@@ -478,22 +478,23 @@ showState :: TimState -> IseqRep
 showState TimState{..} =
   iConcat
   [ iStr "Code:   ", showInstructions Terse instr_, iNewline
-  , showFrame heap_ fptr_
+  , showFrameDeref heap_ fptr_
   , showStack stack_
   , showValueStack vstack_
   , showDump dump_
+  , showHeap heap_
   , iNewline
   ]
 
-showFrame :: TimHeap -> FramePtr -> IseqRep
-showFrame _heap FrameNull = iStr "Null frame ptr" <> iNewline
-showFrame heap (FrameAddr addr) =
+showFrameDeref :: TimHeap -> FramePtr -> IseqRep
+showFrameDeref _heap FrameNull = iStr "Null frame ptr" <> iNewline
+showFrameDeref heap (FrameAddr addr) =
   iConcat
   [ iStr "Frame: <"
   , iIndent (iInterleave iNewline $ map showClosure $ fList $ hLookup heap addr)
   , iStr ">", iNewline
   ]
-showFrame _heap (FrameInt n) = iConcat [ iStr "Frame ptr (int): ", iNum n, iNewline ]
+showFrameDeref _heap (FrameInt n) = iConcat [ iStr "Frame ptr (int): ", iNum n, iNewline ]
 
 showStack :: TimStack -> IseqRep
 showStack stack =
@@ -508,6 +509,24 @@ showValueStack _vstack = iNil
 
 showDump :: TimDump -> IseqRep
 showDump _dump = iNil
+
+showHeap :: TimHeap -> IseqRep
+showHeap heap =
+  iConcat
+  [ iStr "Heap: ["
+  , iIndent (iInterleave iNewline $ map showEnt $ allocs heap)
+  , iStr "]"
+  ]
+  where showEnt (a, f) = iStr (show a) <> iStr ": " <> showFrame f
+
+showFrame :: Frame -> IseqRep
+showFrame (Frame cls) =
+  iConcat
+  [ iStr "Frame: ["
+  , iIndent (iInterleave iNewline $ map showClosure cls)
+  , iStr "]"
+  ]
+showFrame (Forward a) = iStr "Forward: " <> iStr (show a)
 
 showClosure :: Closure -> IseqRep
 showClosure (i, f) =
