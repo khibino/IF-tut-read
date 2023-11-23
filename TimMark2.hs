@@ -329,6 +329,47 @@ step state@TimState{..} = case instr_ of
   Push am : instr          -> applyToStats statIncExtime
                               state { instr_ = instr, stack_ = stkPush (amToClosure am fptr_ heap_ cstore_) stack_ }
 
+  {- rule 4.10 -}
+  Op op : instr'  -> case op of
+    Neg                    -> applyToStats statIncExtime
+                              state { instr_ = instr', vstack_ = vstack1 (- n1) }
+    _op2                   -> applyToStats statIncExtime
+                              state { instr_ = instr', vstack_ = vstack2 (n1 <+> n2) }
+      where (n2, v2) = stkPop v1
+            vstack2 rv = stkPush rv v2
+
+            (<+>) = case op of
+              Add  ->  (+)
+              Sub  ->  (-)
+              Mul  ->  (*)
+              Div  ->  div
+              Gt   ->  comp2 (>)
+              Ge   ->  comp2 (>=)
+              Lt   ->  comp2 (<)
+              Le   ->  comp2 (<=)
+              Eq   ->  comp2 (==)
+              Ne   ->  comp2 (/=)
+
+            comp2 cop x y
+              | x `cop` y  =  1
+              | otherwise  =  0
+
+    where (n1, v1) = stkPop vstack_
+          vstack1 rv = stkPush rv v1
+
+  {- rule 4.11 -}
+  [Return]                 -> applyToStats statIncExtime
+                              state { instr_ = instr', islots_ = slots', stack_ = s1, fptr_ = f' }
+    where (((instr', slots'), f'), s1) = stkPop stack_
+  Return : instr           -> error $ "instructions found after Return: " ++ show instr
+
+  {- rule 4.12 -}
+  PushV FramePtr : instr'
+    | FrameInt n <- fptr_  -> applyToStats statIncExtime
+                              state { instr_ = instr', vstack_ = stkPush n vstack_ }
+    | otherwise            -> error $ "unknown PushV frame: " ++ show fptr_
+  PushV x : _              -> error $ "unknown PushV param: " ++ show x
+
   []                       -> error $ "instructions is []"
 
 amToClosure :: TimAMode -> FramePtr -> TimHeap -> CodeStore -> Closure
