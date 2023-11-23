@@ -49,15 +49,29 @@ infixr 5 <:>
 
 data Instruction
   = Take Int
-  | Enter TimAMode
   | Push TimAMode
+  | PushV ValueAMode
+  | Enter TimAMode
+  | Return
+  | Op Op
+  | Cond [Instruction] [Instruction]
   deriving Show
+
+data Op
+  = Add | Sub | Mul | Div | Neg
+  | Gt | Ge | Lt | Le | Eq | Ne
+  deriving (Eq, Show)
 
 data TimAMode
   = Arg Int
   | Label [Char]
   | Code [Instruction]
   | IntConst Int
+  deriving Show
+
+data ValueAMode
+  = FramePtr
+  | IntVConst Int
   deriving Show
 
 ---
@@ -115,7 +129,7 @@ type Closure = ([Instruction], FramePtr)
 
 ---
 
-data TimValueStack = DummyTimValueStack deriving Show
+type TimValueStack = [Int]
 data TimDump = DummyTimDump deriving Show
 
 type TimHeap = Heap Frame
@@ -193,10 +207,10 @@ statAddAllocated n = modify (ahsize_) (\x s -> s { ahsize_ = x }) (+ n)
 ---
 
 initialArgStack :: TimStack
-initialArgStack = Stack [] 0 0
+initialArgStack = stkPush ([], FrameNull) $ Stack [] 0 0
 
 initialValueStack :: TimValueStack
-initialValueStack = DummyTimValueStack
+initialValueStack = []
 
 initialDump :: TimDump
 initialDump = DummyTimDump
