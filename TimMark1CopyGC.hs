@@ -10,6 +10,8 @@ import Language
 import Control.Monad (when)
 import Data.Either (isLeft)
 import Data.List (mapAccumL)
+import Data.Set (Set)
+import qualified Data.Set as Set
 
 ---
 
@@ -56,9 +58,12 @@ data Instruction
 data TimAMode
   = Arg Int
   | Label [Char]
-  | Code [Instruction]
+  | Code CCode
   | IntConst Int
   deriving Show
+
+type CCode = ([Instruction], Slots)
+type Slots = Set Int
 
 ---
 
@@ -125,7 +130,7 @@ data Frame
   | Forward Addr
   deriving Show
 
-type CodeStore = Assoc Name [Instruction]
+type CodeStore = Assoc Name CCode
 
 data TimStats =
   TimStats
@@ -169,7 +174,7 @@ fList nf@(Forward {}) = error $ "fList: " ++ show nf
 
 ---
 
-codeLookup :: CodeStore -> Name -> [Instruction]
+codeLookup :: CodeStore -> Name -> CCode
 codeLookup cstore l =
   aLookup cstore l (error $ "Attempt to jump to unknown label " ++ show l)
 
@@ -208,32 +213,39 @@ applyToStats = modify stats_ putStats_
 
 ---
 
-compiledPrimitives :: [(Name, [Instruction])]
+compiledPrimitives :: [(Name, CCode)]
 compiledPrimitives = []
 
 ---
 
 type TimCompilerEnv = [(Name, TimAMode)]
 
-compileSC :: TimCompilerEnv -> CoreScDefn -> (Name, [Instruction])
+compileSC :: TimCompilerEnv -> CoreScDefn -> (Name, CCode)
 compileSC env (name, args, body)
-  | len == 0  =  (name, instructions)  {- exercise 4.3 -}
-  | otherwise =  (name, Take (length args) : instructions)
+  | len == 0  =  (name, (instructions, slots))  {- exercise 4.3 -}
+  | otherwise =  (name, (Take (length args) : instructions, slots))
   where
     len = length args
-    instructions = compileR body new_env
+    (instructions, slots) = compileR body new_env
     new_env = zip args (map Arg [1..]) ++ env
 
-compileR :: CoreExpr -> TimCompilerEnv -> [Instruction]
-compileR (EAp e1 e2)  env = Push (compileA e2 env) : compileR e1 env
-compileR (EVar v)     env = [Enter (compileA (EVar v) env)]
-compileR (ENum n)     env = [Enter (compileA (ENum n) env)]
+compileR :: CoreExpr -> TimCompilerEnv -> CCode
+compileR (EAp e1 e2)  env = (Push instrA : instrR, slotsA `Set.union` slotsR)
+  where (instrA, slotsA) = compileA e2 env
+        (instrR, slotsR) = compileR e1 env
+compileR (EVar v)     env = ([Enter instrA], slotsA)
+  where (instrA, slotsA) = compileA (EVar v) env
+compileR (ENum n)     env = ([Enter instrA], slotsA)
+  where (instrA, slotsA) = compileA (ENum n) env
 compileR  _e         _env = error "compileR: can't do this yet"
 
-compileA :: CoreExpr -> TimCompilerEnv -> TimAMode
-compileA (EVar v)  env = aLookup env v (error $ "Unknown variable " ++ v)
-compileA (ENum n) _env = IntConst n
-compileA  e        env = Code (compileR e env)
+compileA :: CoreExpr -> TimCompilerEnv -> (TimAMode, Slots)
+compileA (EVar v)  env = case aLookup env v (error $ "Unknown variable " ++ v) of
+  a@(Arg n) -> (a, Set.singleton n)
+  a         -> (a, Set.empty)
+compileA (ENum n) _env = (IntConst n, Set.empty)
+compileA  e        env = (Code ccode, slots)
+  where ccode@(_, slots) = compileR e env
 
 ---
 
@@ -278,6 +290,9 @@ fullRun' doGC = showFullResults . eval' doGC . compile . parse
 fullRun :: [Char] -> [Char]
 fullRun = showFullResults . eval . compile . parse
 
+compiledCode :: String -> IO ()
+compiledCode = mapM_ print . cstore_ . compile . parse
+
 ---
 
 doAdmin :: TimState -> TimState
@@ -306,10 +321,10 @@ step state@TimState{..} = case instr_ of
 
 amToClosure :: TimAMode -> FramePtr -> TimHeap -> CodeStore -> ([Instruction], FramePtr)
 amToClosure amode fptr heap cstore = case amode of
-  Arg n       -> fGet heap fptr n
-  Code il     -> (il, fptr)
-  Label l     -> (codeLookup cstore l, fptr)
-  IntConst n  -> (intCode, FrameInt n)
+  Arg n         -> fGet heap fptr n
+  Code (il, _)  -> (il, fptr)
+  Label l       -> (fst $ codeLookup cstore l, fptr)
+  IntConst n    -> (intCode, FrameInt n)
 
 intCode :: [Instruction]
 intCode = []
@@ -467,11 +482,12 @@ showResults states =
 showSCDefns :: TimState -> IseqRep
 showSCDefns TimState{..} = iInterleave iNewline $ map showSC cstore_
 
-showSC :: (Name, [Instruction]) -> IseqRep
-showSC (name, il) =
+showSC :: (Name, CCode) -> IseqRep
+showSC (name, (il, slots)) =
   iConcat
   [ iStr "Code for ", iStr name, iStr ":", iNewline
-  , iStr "   ", showInstructions Full il, iNewline, iNewline
+  , iStr "   ", showInstructions Full il, iNewline
+  , iStr "   Slots: ", showSlots slots, iNewline
   ]
 
 showState :: TimState -> IseqRep
@@ -572,10 +588,14 @@ showInstruction  d (Push x)  = iStr "Push "  <> showArg d x
 
 showArg :: HowMuchToPrint -> TimAMode -> IseqRep
 showArg d a = case a of
-  Arg m       -> iStr "Arg "  <> iNum m
-  Code il     -> iStr "Code " <> showInstructions d il
-  Label s     -> iStr "Label " <> iStr s
-  IntConst n  -> iStr "IntConst " <> iNum n
+  Arg m         -> iStr "Arg "  <> iNum m
+  Code (il, ss) -> iStr "Code " <> showInstructions d il <> iNewline <>
+                   iIndent (iStr "     ( Slots: " <> showSlots ss <> iStr " )")
+  Label s       -> iStr "Label " <> iStr s
+  IntConst n    -> iStr "IntConst " <> iNum n
+
+showSlots :: Slots -> IseqRep
+showSlots = iStr . show . Set.toList
 
 nTerse :: Int
 nTerse = 3
