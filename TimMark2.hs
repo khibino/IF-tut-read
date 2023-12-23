@@ -124,7 +124,7 @@ type Closure = (CCode, FramePtr)
 
 ---
 
-type TimValueStack = [Int]
+type TimValueStack = Stack Int
 data TimDump = DummyTimDump deriving Show
 
 type TimHeap = Heap Frame
@@ -205,7 +205,7 @@ initialArgStack :: TimStack
 initialArgStack = stkPush (mempty, FrameNull) $ Stack [] 0 0
 
 initialValueStack :: TimValueStack
-initialValueStack = []
+initialValueStack = Stack [] 0 0
 
 initialDump :: TimDump
 initialDump = DummyTimDump
@@ -547,7 +547,7 @@ showStack stack =
   ]
 
 showValueStack :: TimValueStack -> IseqRep
-showValueStack _vstack = iNil
+showValueStack vstack = iStr "Value stack: " <> iStr (show $ list vstack) <> iNewline
 
 showDump :: TimDump -> IseqRep
 showDump _dump = iNil
