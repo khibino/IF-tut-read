@@ -338,7 +338,13 @@ gc s@TimState{..} = s { fptr_ = fptr1, stack_ = stack1, heap_ = dheap }
   where
     dheap = uncurry scavengeHeap heaps2
 
-    (heaps2, fptr1) = evacuateFramePtr heaps1 fptr_
+    -- (heaps2, fptr1) = evacuateFramePtr heaps1 fptr_  {- Not pruned -}
+    (heaps2, fptr1) = evacuateFramePtrPruned prune heaps1 fptr_
+    prune :: [Closure] -> [Closure]
+    prune cs = zipWith pruneBySlot [1..] cs
+    pruneBySlot i c
+      | i `Set.member` islots_   = c
+      | otherwise                = (mempty, FrameNull)
 
     stack1 :: TimStack
     stack1 = stkOfList clist1 (maxDepth stack_)
@@ -358,13 +364,18 @@ gc s@TimState{..} = s { fptr_ = fptr1, stack_ = stack1, heap_ = dheap }
 (((3,[(1,Forward 2),(2,Forward 1),(3,Frame [])],3),(2,[(2,Frame [(([],fromList []),FrameAddr 2)]),(1,Frame [(([],fromList []),FrameAddr 1)])],2)),1)
  -}
 evacuateAddr :: (TimHeap, TimHeap) -> Addr -> ((TimHeap, TimHeap), Addr)
-evacuateAddr heaps0@(srcH0, dstH0) srcA  = case frame0 of
+evacuateAddr = evacuateAddrPruned id
+
+evacuateAddrPruned :: ([Closure] -> [Closure]) -> (TimHeap, TimHeap) -> Addr -> ((TimHeap, TimHeap), Addr)
+evacuateAddrPruned prune heaps0@(srcH0, dstH0) srcA  = case frame0 of
   Forward dstA  -> (heaps0, dstA)
   Frame cs      -> (heaps2, dstA)
     where
-      heaps2 = foldl evacuateFramePtr' (srcH1, dstH1) $ map snd cs
+      heaps2 = foldl evacuateFramePtr' (srcH1, dstH1) $ map snd cs1
       srcH1 = hUpdate srcH0 srcA (Forward dstA)
-      (dstH1, dstA) = hAlloc dstH0 frame0
+      (dstH1, dstA) = hAlloc dstH0 frame1
+      frame1 = Frame cs1
+      cs1 = prune cs
 
       evacuateFramePtr' hs0 fptr = fst $ evacuateFramePtr hs0 fptr
   where
@@ -375,9 +386,12 @@ evacuateClosure heaps0 (is, fptr0) = (heaps1, (is, fptr1))
   where (heaps1, fptr1) = evacuateFramePtr heaps0 fptr0
 
 evacuateFramePtr :: (TimHeap, TimHeap) -> FramePtr -> ((TimHeap, TimHeap), FramePtr)
-evacuateFramePtr heaps0 (FrameAddr a)  = (heaps1, FrameAddr a1)
-  where (heaps1, a1) = evacuateAddr heaps0 a
-evacuateFramePtr heaps0  fptr          = (heaps0, fptr)
+evacuateFramePtr = evacuateFramePtrPruned id
+
+evacuateFramePtrPruned :: ([Closure] -> [Closure]) -> (TimHeap, TimHeap) -> FramePtr -> ((TimHeap, TimHeap), FramePtr)
+evacuateFramePtrPruned prune heaps0 (FrameAddr a)  = (heaps1, FrameAddr a1)
+  where (heaps1, a1) = evacuateAddrPruned prune heaps0 a
+evacuateFramePtrPruned _      heaps0  fptr          = (heaps0, fptr)
 
 _evacuateExample :: ((TimHeap, TimHeap), Addr) -> IO ()
 _evacuateExample (hs0@(srcH0, dstH0), a0) =
