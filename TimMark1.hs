@@ -88,17 +88,6 @@ putStack_ a s = s { stack_ = a }
 putStats_ :: TimStats -> TimState -> TimState
 putStats_ a s = s { stats_ = a }
 
-{-
-type TimState = ( [Instruction],
-                  FramePtr,
-                  TimStack,
-                  TimValueStack,
-                  TimDump,
-                  TimHeap,
-                  CodeStore,
-                  TimStats )
- -}
-
 ---
 
 data FramePtr
