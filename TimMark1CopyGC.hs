@@ -75,6 +75,7 @@ modify get set update s = set (update (get s)) s
 data TimState =
   TimState
   { instr_    :: [Instruction]
+  , islots_   :: Slots
   , fptr_     :: FramePtr
   , stack_    :: TimStack
   , vstack_   :: TimValueStack
@@ -116,7 +117,7 @@ data FramePtr
 ---
 
 type TimStack = Stack Closure
-type Closure = ([Instruction], FramePtr)
+type Closure = (CCode, FramePtr)
 
 ---
 
@@ -256,6 +257,7 @@ compile :: CoreProgram -> TimState
 compile program =
   TimState
   { instr_   = [Enter (Label "main")]
+  , islots_  = Set.empty
   , fptr_    = FrameNull
   , stack_   = initialArgStack
   , vstack_  = initialValueStack
@@ -310,8 +312,8 @@ step state@TimState{..} = case instr_ of
     where (heap', fptr') = fAlloc heap_ (fst $ stkPopN n stack_)
 
   [Enter am]               -> applyToStats statIncExtime
-                              state { instr_ = instr', fptr_ = fptr' }
-    where (instr', fptr') = amToClosure am fptr_ heap_ cstore_
+                              state { instr_ = instr', islots_ = slots', fptr_ = fptr' }
+    where ((instr', slots'), fptr') = amToClosure am fptr_ heap_ cstore_
   Enter {} : instr         -> error $ "instructions found after Enter: " ++ show instr
 
   Push am : instr          -> applyToStats statIncExtime
@@ -319,15 +321,15 @@ step state@TimState{..} = case instr_ of
 
   []                       -> error $ "instructions is []"
 
-amToClosure :: TimAMode -> FramePtr -> TimHeap -> CodeStore -> ([Instruction], FramePtr)
+amToClosure :: TimAMode -> FramePtr -> TimHeap -> CodeStore -> Closure
 amToClosure amode fptr heap cstore = case amode of
   Arg n         -> fGet heap fptr n
-  Code (il, _)  -> (il, fptr)
-  Label l       -> (fst $ codeLookup cstore l, fptr)
+  Code ccode    -> (ccode, fptr)
+  Label l       -> (codeLookup cstore l, fptr)
   IntConst n    -> (intCode, FrameInt n)
 
-intCode :: [Instruction]
-intCode = []
+intCode :: CCode
+intCode = mempty
 
 ---
 
@@ -349,11 +351,11 @@ gc s@TimState{..} = s { fptr_ = fptr1, stack_ = stack1, heap_ = dheap }
 
 {- |
 >>> uncurry evacuateAddr _cyclic1
-(((2,[(1,Forward 1),(2,Frame [])],2),(1,[(1,Frame [([],FrameAddr 1)])],1)),1)
+(((2,[(1,Forward 1),(2,Frame [])],2),(1,[(1,Frame [(([],fromList []),FrameAddr 1)])],1)),1)
 >>> uncurry evacuateAddr _cyclic2a
-(((3,[(2,Forward 2),(1,Forward 1),(3,Frame [])],3),(2,[(2,Frame [([],FrameAddr 1)]),(1,Frame [([],FrameAddr 2)])],2)),1)
+(((3,[(2,Forward 2),(1,Forward 1),(3,Frame [])],3),(2,[(2,Frame [(([],fromList []),FrameAddr 1)]),(1,Frame [(([],fromList []),FrameAddr 2)])],2)),1)
 >>> uncurry evacuateAddr _cyclic2b
-(((3,[(1,Forward 2),(2,Forward 1),(3,Frame [])],3),(2,[(2,Frame [([],FrameAddr 2)]),(1,Frame [([],FrameAddr 1)])],2)),1)
+(((3,[(1,Forward 2),(2,Forward 1),(3,Frame [])],3),(2,[(2,Frame [(([],fromList []),FrameAddr 2)]),(1,Frame [(([],fromList []),FrameAddr 1)])],2)),1)
  -}
 evacuateAddr :: (TimHeap, TimHeap) -> Addr -> ((TimHeap, TimHeap), Addr)
 evacuateAddr heaps0@(srcH0, dstH0) srcA  = case frame0 of
@@ -409,7 +411,7 @@ _cyclic1 = ((heap, hInitial), addr)
     fptr = FrameAddr addr
     (heap1, addr) = hAlloc heap0 frame
 
-    code = []
+    code = mempty
     heap0 = hInitial
 
 _cyclic2a, _cyclic2b :: ((TimHeap, TimHeap), Addr)
@@ -432,7 +434,7 @@ _cyclic2a, _cyclic2b :: ((TimHeap, TimHeap), Addr)
     (heap1, addr1) = hAlloc heap0 frame1
     fptr1 = FrameAddr addr1
 
-    code = []
+    code = mempty
     heap0 = hInitial
 
 scavengeHeap :: TimHeap -> TimHeap -> TimHeap
@@ -545,9 +547,10 @@ showFrame (Frame cls) =
 showFrame (Forward a) = iStr "Forward: " <> iStr (show a)
 
 showClosure :: Closure -> IseqRep
-showClosure (i, f) =
+showClosure ((i, ss), f) =
   iConcat
   [ iStr "(", showInstructions Terse i, iStr ", "
+  , showSlots ss, iStr ", "
   , showFramePtr f, iStr ")"
   ]
 
