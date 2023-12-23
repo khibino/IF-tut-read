@@ -623,7 +623,7 @@ test' :: Bool -> String -> IO ()
 test' doGC = putStr . fullRun' doGC
 
 test :: String -> IO ()
-test = test' False
+test = test' True
 
 check :: FramePtr -> String -> Either String String
 check expect prog
@@ -650,6 +650,9 @@ testEx4_1_a, testEx4_1_b :: String
 testEx4_1_b' = "id x = S K K x ; id1 = id id ; main = id1 4"
 testEx4_1_b' :: String
 
+test_compose2 :: String
+test_compose2 = "compose2 f g x = f (g x x) ; main = compose2 I K 3"
+
 ---
 
 checks :: IO ()
@@ -664,4 +667,5 @@ checkList :: [(FramePtr, String)]
 checkList =
   [ (FrameInt 4, "main = S K K 4")
   , (FrameInt 4, "id = S K K ; id1 = id id ; main = id1 4")
+  , (FrameInt 3, "compose2 f g x = f (g x x) ; main = compose2 I K 3")
   ]
