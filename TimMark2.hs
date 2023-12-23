@@ -10,6 +10,8 @@ import Language
 import Control.Monad (when)
 import Data.Either (isLeft)
 import Data.List (mapAccumL)
+import Data.Set (Set)
+import qualified Data.Set as Set
 
 ---
 
@@ -65,9 +67,12 @@ data Op
 data TimAMode
   = Arg Int
   | Label [Char]
-  | Code [Instruction]
+  | Code CCode
   | IntConst Int
   deriving Show
+
+type CCode = ([Instruction], Slots)
+type Slots = Set Int
 
 data ValueAMode
   = FramePtr
@@ -84,6 +89,7 @@ modify get set update s = set (update (get s)) s
 data TimState =
   TimState
   { instr_    :: [Instruction]
+  , islots_   :: Slots
   , fptr_     :: FramePtr
   , stack_    :: TimStack
   , vstack_   :: TimValueStack
@@ -114,7 +120,7 @@ data FramePtr
 ---
 
 type TimStack = Stack Closure
-type Closure = ([Instruction], FramePtr)
+type Closure = (CCode, FramePtr)
 
 ---
 
@@ -128,7 +134,7 @@ data Frame
   | Forward Addr
   deriving Show
 
-type CodeStore = Assoc Name [Instruction]
+type CodeStore = Assoc Name CCode
 
 data TimStats =
   TimStats
@@ -172,7 +178,7 @@ fList nf@(Forward {}) = error $ "fList: " ++ show nf
 
 ---
 
-codeLookup :: CodeStore -> Name -> [Instruction]
+codeLookup :: CodeStore -> Name -> CCode
 codeLookup cstore l =
   aLookup cstore l (error $ "Attempt to jump to unknown label " ++ show l)
 
@@ -196,7 +202,7 @@ statAddAllocated n = modify (ahsize_) (\x s -> s { ahsize_ = x }) (+ n)
 ---
 
 initialArgStack :: TimStack
-initialArgStack = stkPush ([], FrameNull) $ Stack [] 0 0
+initialArgStack = stkPush (mempty, FrameNull) $ Stack [] 0 0
 
 initialValueStack :: TimValueStack
 initialValueStack = []
@@ -211,32 +217,39 @@ applyToStats = modify stats_ putStats_
 
 ---
 
-compiledPrimitives :: [(Name, [Instruction])]
+compiledPrimitives :: [(Name, CCode)]
 compiledPrimitives = []
 
 ---
 
 type TimCompilerEnv = [(Name, TimAMode)]
 
-compileSC :: TimCompilerEnv -> CoreScDefn -> (Name, [Instruction])
+compileSC :: TimCompilerEnv -> CoreScDefn -> (Name, CCode)
 compileSC env (name, args, body)
-  | len == 0  =  (name, instructions)  {- exercise 4.3 -}
-  | otherwise =  (name, Take (length args) : instructions)
+  | len == 0  =  (name, (instructions, slots))  {- exercise 4.3 -}
+  | otherwise =  (name, (Take (length args) : instructions, slots))
   where
     len = length args
-    instructions = compileR body new_env
+    (instructions, slots) = compileR body new_env
     new_env = zip args (map Arg [1..]) ++ env
 
-compileR :: CoreExpr -> TimCompilerEnv -> [Instruction]
-compileR (EAp e1 e2)  env = Push (compileA e2 env) : compileR e1 env
-compileR (EVar v)     env = [Enter (compileA (EVar v) env)]
-compileR (ENum n)     env = [Enter (compileA (ENum n) env)]
+compileR :: CoreExpr -> TimCompilerEnv -> CCode
+compileR (EAp e1 e2)  env = (Push instrA : instrR, slotsA `Set.union` slotsR)
+  where (instrA, slotsA) = compileA e2 env
+        (instrR, slotsR) = compileR e1 env
+compileR (EVar v)     env = ([Enter instrA], slotsA)
+  where (instrA, slotsA) = compileA (EVar v) env
+compileR (ENum n)     env = ([Enter instrA], slotsA)
+  where (instrA, slotsA) = compileA (ENum n) env
 compileR  _e         _env = error "compileR: can't do this yet"
 
-compileA :: CoreExpr -> TimCompilerEnv -> TimAMode
-compileA (EVar v)  env = aLookup env v (error $ "Unknown variable " ++ v)
-compileA (ENum n) _env = IntConst n
-compileA  e        env = Code (compileR e env)
+compileA :: CoreExpr -> TimCompilerEnv -> (TimAMode, Slots)
+compileA (EVar v)  env = case aLookup env v (error $ "Unknown variable " ++ v) of
+  a@(Arg n) -> (a, Set.singleton n)
+  a         -> (a, Set.empty)
+compileA (ENum n) _env = (IntConst n, Set.empty)
+compileA  e        env = (Code ccode, slots)
+  where ccode@(_, slots) = compileR e env
 
 ---
 
@@ -247,6 +260,7 @@ compile :: CoreProgram -> TimState
 compile program =
   TimState
   { instr_   = [Enter (Label "main")]
+  , islots_  = Set.empty
   , fptr_    = FrameNull
   , stack_   = initialArgStack
   , vstack_  = initialValueStack
@@ -281,6 +295,9 @@ fullRun' doGC = showFullResults . eval' doGC . compile . parse
 fullRun :: [Char] -> [Char]
 fullRun = showFullResults . eval . compile . parse
 
+compiledCode :: String -> IO ()
+compiledCode = mapM_ print . cstore_ . compile . parse
+
 ---
 
 doAdmin :: TimState -> TimState
@@ -298,8 +315,8 @@ step state@TimState{..} = case instr_ of
     where (heap', fptr') = fAlloc heap_ (fst $ stkPopN n stack_)
 
   [Enter am]               -> applyToStats statIncExtime
-                              state { instr_ = instr', fptr_ = fptr' }
-    where (instr', fptr') = amToClosure am fptr_ heap_ cstore_
+                              state { instr_ = instr', islots_ = slots', fptr_ = fptr' }
+    where ((instr', slots'), fptr') = amToClosure am fptr_ heap_ cstore_
   Enter {} : instr         -> error $ "instructions found after Enter: " ++ show instr
 
   Push am : instr          -> applyToStats statIncExtime
@@ -307,15 +324,15 @@ step state@TimState{..} = case instr_ of
 
   []                       -> error $ "instructions is []"
 
-amToClosure :: TimAMode -> FramePtr -> TimHeap -> CodeStore -> ([Instruction], FramePtr)
+amToClosure :: TimAMode -> FramePtr -> TimHeap -> CodeStore -> Closure
 amToClosure amode fptr heap cstore = case amode of
-  Arg n       -> fGet heap fptr n
-  Code il     -> (il, fptr)
-  Label l     -> (codeLookup cstore l, fptr)
-  IntConst n  -> (intCode, FrameInt n)
+  Arg n         -> fGet heap fptr n
+  Code ccode    -> (ccode, fptr)
+  Label l       -> (codeLookup cstore l, fptr)
+  IntConst n    -> (intCode, FrameInt n)
 
-intCode :: [Instruction]
-intCode = []
+intCode :: CCode
+intCode = mempty
 
 ---
 
@@ -324,7 +341,13 @@ gc s@TimState{..} = s { fptr_ = fptr1, stack_ = stack1, heap_ = dheap }
   where
     dheap = uncurry scavengeHeap heaps2
 
-    (heaps2, fptr1) = evacuateFramePtr heaps1 fptr_
+    -- (heaps2, fptr1) = evacuateFramePtr heaps1 fptr_  {- Not pruned -}
+    (heaps2, fptr1) = evacuateFramePtrPruned prune heaps1 fptr_
+    prune :: [Closure] -> [Closure]
+    prune cs = zipWith pruneBySlot [1..] cs
+    pruneBySlot i c
+      | i `Set.member` islots_   = c
+      | otherwise                = (mempty, FrameNull)
 
     stack1 :: TimStack
     stack1 = stkOfList clist1 (maxDepth stack_)
@@ -354,20 +377,25 @@ evacuateAddr' args heaps0@(srcH0, dstH0) srcA  = case frame0 of
 
 {- |
 >>> uncurry evacuateAddr _cyclic1
-(((2,[(1,Forward 1),(2,Frame [])],2),(1,[(1,Frame [([],FrameAddr 1)])],1)),1)
+(((2,[(1,Forward 1),(2,Frame [])],2),(1,[(1,Frame [(([],fromList []),FrameAddr 1)])],1)),1)
 >>> uncurry evacuateAddr _cyclic2a
-(((3,[(2,Forward 2),(1,Forward 1),(3,Frame [])],3),(2,[(2,Frame [([],FrameAddr 1)]),(1,Frame [([],FrameAddr 2)])],2)),1)
+(((3,[(2,Forward 2),(1,Forward 1),(3,Frame [])],3),(2,[(2,Frame [(([],fromList []),FrameAddr 1)]),(1,Frame [(([],fromList []),FrameAddr 2)])],2)),1)
 >>> uncurry evacuateAddr _cyclic2b
-(((3,[(1,Forward 2),(2,Forward 1),(3,Frame [])],3),(2,[(2,Frame [([],FrameAddr 2)]),(1,Frame [([],FrameAddr 1)])],2)),1)
+(((3,[(1,Forward 2),(2,Forward 1),(3,Frame [])],3),(2,[(2,Frame [(([],fromList []),FrameAddr 2)]),(1,Frame [(([],fromList []),FrameAddr 1)])],2)),1)
  -}
 evacuateAddr :: (TimHeap, TimHeap) -> Addr -> ((TimHeap, TimHeap), Addr)
-evacuateAddr heaps0@(srcH0, dstH0) srcA  = case frame0 of
+evacuateAddr = evacuateAddrPruned id
+
+evacuateAddrPruned :: ([Closure] -> [Closure]) -> (TimHeap, TimHeap) -> Addr -> ((TimHeap, TimHeap), Addr)
+evacuateAddrPruned prune heaps0@(srcH0, dstH0) srcA  = case frame0 of
   Forward dstA  -> (heaps0, dstA)
   Frame cs      -> (heaps2, dstA)
     where
-      heaps2 = foldl evacuateFramePtr' (srcH1, dstH1) $ map snd cs
+      heaps2 = foldl evacuateFramePtr' (srcH1, dstH1) $ map snd cs1
       srcH1 = hUpdate srcH0 srcA (Forward dstA)
-      (dstH1, dstA) = hAlloc dstH0 frame0
+      (dstH1, dstA) = hAlloc dstH0 frame1
+      frame1 = Frame cs1
+      cs1 = prune cs
 
       evacuateFramePtr' hs0 fptr = fst $ evacuateFramePtr hs0 fptr
   where
@@ -378,9 +406,12 @@ evacuateClosure heaps0 (is, fptr0) = (heaps1, (is, fptr1))
   where (heaps1, fptr1) = evacuateFramePtr heaps0 fptr0
 
 evacuateFramePtr :: (TimHeap, TimHeap) -> FramePtr -> ((TimHeap, TimHeap), FramePtr)
-evacuateFramePtr heaps0 (FrameAddr a)  = (heaps1, FrameAddr a1)
-  where (heaps1, a1) = evacuateAddr heaps0 a
-evacuateFramePtr heaps0  fptr          = (heaps0, fptr)
+evacuateFramePtr = evacuateFramePtrPruned id
+
+evacuateFramePtrPruned :: ([Closure] -> [Closure]) -> (TimHeap, TimHeap) -> FramePtr -> ((TimHeap, TimHeap), FramePtr)
+evacuateFramePtrPruned prune heaps0 (FrameAddr a)  = (heaps1, FrameAddr a1)
+  where (heaps1, a1) = evacuateAddrPruned prune heaps0 a
+evacuateFramePtrPruned _      heaps0  fptr          = (heaps0, fptr)
 
 _evacuateExample :: ((TimHeap, TimHeap), Addr) -> IO ()
 _evacuateExample (hs0@(srcH0, dstH0), a0) =
@@ -414,7 +445,7 @@ _cyclic1 = ((heap, hInitial), addr)
     fptr = FrameAddr addr
     (heap1, addr) = hAlloc heap0 frame
 
-    code = []
+    code = mempty
     heap0 = hInitial
 
 _cyclic2a, _cyclic2b :: ((TimHeap, TimHeap), Addr)
@@ -437,7 +468,7 @@ _cyclic2a, _cyclic2b :: ((TimHeap, TimHeap), Addr)
     (heap1, addr1) = hAlloc heap0 frame1
     fptr1 = FrameAddr addr1
 
-    code = []
+    code = mempty
     heap0 = hInitial
 
 scavengeHeap :: TimHeap -> TimHeap -> TimHeap
@@ -487,11 +518,12 @@ showResults states =
 showSCDefns :: TimState -> IseqRep
 showSCDefns TimState{..} = iInterleave iNewline $ map showSC cstore_
 
-showSC :: (Name, [Instruction]) -> IseqRep
-showSC (name, il) =
+showSC :: (Name, CCode) -> IseqRep
+showSC (name, (il, slots)) =
   iConcat
   [ iStr "Code for ", iStr name, iStr ":", iNewline
-  , iStr "   ", showInstructions Full il, iNewline, iNewline
+  , iStr "   ", showInstructions Full il, iNewline
+  , iStr "   Slots: ", showSlots slots, iNewline
   ]
 
 showState :: TimState -> IseqRep
@@ -549,9 +581,10 @@ showFrame (Frame cls) =
 showFrame (Forward a) = iStr "Forward: " <> iStr (show a)
 
 showClosure :: Closure -> IseqRep
-showClosure (i, f) =
+showClosure ((i, ss), f) =
   iConcat
   [ iStr "(", showInstructions Terse i, iStr ", "
+  , showSlots ss, iStr ", "
   , showFramePtr f, iStr ")"
   ]
 
@@ -592,10 +625,14 @@ showInstruction  d (Push x)  = iStr "Push "  <> showArg d x
 
 showArg :: HowMuchToPrint -> TimAMode -> IseqRep
 showArg d a = case a of
-  Arg m       -> iStr "Arg "  <> iNum m
-  Code il     -> iStr "Code " <> showInstructions d il
-  Label s     -> iStr "Label " <> iStr s
-  IntConst n  -> iStr "IntConst " <> iNum n
+  Arg m         -> iStr "Arg "  <> iNum m
+  Code (il, ss) -> iStr "Code " <> showInstructions d il <> iNewline <>
+                   iIndent (iStr "     ( Slots: " <> showSlots ss <> iStr " )")
+  Label s       -> iStr "Label " <> iStr s
+  IntConst n    -> iStr "IntConst " <> iNum n
+
+showSlots :: Slots -> IseqRep
+showSlots = iStr . show . Set.toList
 
 nTerse :: Int
 nTerse = 3
@@ -606,7 +643,7 @@ test' :: Bool -> String -> IO ()
 test' doGC = putStr . fullRun' doGC
 
 test :: String -> IO ()
-test = test' False
+test = test' True
 
 check :: FramePtr -> String -> Either String String
 check expect prog
@@ -633,6 +670,9 @@ testEx4_1_a, testEx4_1_b :: String
 testEx4_1_b' = "id x = S K K x ; id1 = id id ; main = id1 4"
 testEx4_1_b' :: String
 
+test_compose2 :: String
+test_compose2 = "compose2 f g x = f (g x x) ; main = compose2 I K 3"
+
 ---
 
 checks :: IO ()
@@ -647,4 +687,5 @@ checkList :: [(FramePtr, String)]
 checkList =
   [ (FrameInt 4, "main = S K K 4")
   , (FrameInt 4, "id = S K K ; id1 = id id ; main = id1 4")
+  , (FrameInt 3, "compose2 f g x = f (g x x) ; main = compose2 I K 3")
   ]
