@@ -234,20 +234,19 @@ compileSC env (name, args, body)
     new_env = zip args (map Arg [1..]) ++ env
 
 compileR :: CoreExpr -> TimCompilerEnv -> CCode
-compileR (EAp e1 e2)  env = (Push instrA : instrR, slotsA `Set.union` slotsR)
-  where (instrA, slotsA) = compileA e2 env
-        (instrR, slotsR) = compileR e1 env
-compileR (EVar v)     env = ([Enter instrA], slotsA)
-  where (instrA, slotsA) = compileA (EVar v) env
-compileR (ENum n)     env = ([Enter instrA], slotsA)
-  where (instrA, slotsA) = compileA (ENum n) env
+compileR (EAp e1 e2)  env = liftAR Push  (compileA e2 env) <> compileR e1 env
+compileR (EVar v)     env = liftAR Enter (compileA (EVar v) env)
+compileR (ENum n)     env = liftAR Enter (compileA (ENum n) env)
 compileR  _e         _env = error "compileR: can't do this yet"
+
+liftAR :: (TimAMode -> Instruction) -> (TimAMode, a) -> ([Instruction], a)
+liftAR f (instA, slotsA) = ([f instA], slotsA)
 
 compileA :: CoreExpr -> TimCompilerEnv -> (TimAMode, Slots)
 compileA (EVar v)  env = case aLookup env v (error $ "Unknown variable " ++ v) of
   a@(Arg n) -> (a, Set.singleton n)
-  a         -> (a, Set.empty)
-compileA (ENum n) _env = (IntConst n, Set.empty)
+  a         -> (a, mempty)
+compileA (ENum n) _env = (IntConst n, mempty)
 compileA  e        env = (Code ccode, slots)
   where ccode@(_, slots) = compileR e env
 
@@ -260,7 +259,7 @@ compile :: CoreProgram -> TimState
 compile program =
   TimState
   { instr_   = [Enter (Label "main")]
-  , islots_  = Set.empty
+  , islots_  = mempty
   , fptr_    = FrameNull
   , stack_   = initialArgStack
   , vstack_  = initialValueStack
