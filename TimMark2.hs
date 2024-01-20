@@ -772,6 +772,15 @@ testEx4_1_b' :: String
 test_ex44 :: String
 test_ex44 = "four = 2 * 2; main = four + four"
 
+test_fact :: String
+test_fact = "factorial n = if n 1 (n * factorial (n-1)); main = factorial 3"
+
+test_fib3 :: String
+test_fib3 = "fib n = if (n < 2) 1 (fib (n-1) + fib (n-2)); main = fib 3"
+
+test_fib10 :: String
+test_fib10 = "fib n = if (n < 2) 1 (fib (n-1) + fib (n-2)); main = fib 10"
+
 test_compose2 :: String
 test_compose2 = "compose2 f g x = f (g x x) ; main = compose2 I K 3"
 
