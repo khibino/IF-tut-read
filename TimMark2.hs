@@ -612,6 +612,12 @@ showInstruction :: HowMuchToPrint -> Instruction -> IseqRep
 showInstruction _d (Take m)  = iStr "Take "  <> iNum m
 showInstruction  d (Enter x) = iStr "Enter " <> showArg d x
 showInstruction  d (Push x)  = iStr "Push "  <> showArg d x
+showInstruction _d (PushV x) = iStr "PushV " <> iStr (show x)
+showInstruction _d  Return   = iStr "Return"
+showInstruction _d (Op op)   = iStr $ "Op " <> show op
+showInstruction  d (Cond t e) = iStr "Cond"                       <> iNewline <>
+                                iStr "  " <> showInstructions d t <> iNewline <>
+                                iStr "  " <> showInstructions d e
 
 showArg :: HowMuchToPrint -> TimAMode -> IseqRep
 showArg d a = case a of
