@@ -357,23 +357,6 @@ gc s@TimState{..} = s { fptr_ = fptr1, stack_ = stack1, heap_ = dheap }
     clist0 = list stack_
     heaps0 = (heap_, hInitial)
 
-data Args
-  = All
-  | Args [Int]
-
-evacuateAddr' :: Args -> (TimHeap, TimHeap) -> Addr -> ((TimHeap, TimHeap), Addr)
-evacuateAddr' args heaps0@(srcH0, dstH0) srcA  = case frame0 of
-  Forward dstA  -> (heaps0, dstA)
-  Frame cs      -> (heaps2, dstA)
-    where
-      heaps2 = foldl evacuateFramePtr' (srcH1, dstH1) $ map snd cs
-      srcH1 = hUpdate srcH0 srcA (Forward dstA)
-      (dstH1, dstA) = hAlloc dstH0 frame0
-
-      evacuateFramePtr' hs0 fptr = fst $ evacuateFramePtr hs0 fptr
-  where
-    frame0 = hLookup srcH0 srcA
-
 {- |
 >>> uncurry evacuateAddr _cyclic1
 (((2,[(1,Forward 1),(2,Frame [])],2),(1,[(1,Frame [(([],fromList []),FrameAddr 1)])],1)),1)
