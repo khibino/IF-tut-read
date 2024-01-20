@@ -786,4 +786,8 @@ checkList =
   [ (4, "main = S K K 4")
   , (4, "id = S K K ; id1 = id id ; main = id1 4")
   , (3, "compose2 f g x = f (g x x) ; main = compose2 I K 3")
+  , (8, "four = 2 * 2; main = four + four")
+  , (1, "main = if 0 1 2")
+  , (2, "main = if 1 1 2")
+  , (6, "fact n = if n 1 (n * fact (n-1)); main = fact 3")
   ]
