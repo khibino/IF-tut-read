@@ -226,7 +226,28 @@ mapCode f (x, slots) = (f x, slots)
 ---
 
 compiledPrimitives :: [(Name, CCode)]
-compiledPrimitives = []
+compiledPrimitives = [ ("+", op2code Add)
+                     , ("-", op2code Sub)
+                     , ("*", op2code Mul)
+                     , ("/", op2code Div)
+
+                     , (">" , op2code Gt)
+                     , (">=", op2code Ge)
+                     , ("<" , op2code Lt)
+                     , ("<=", op2code Le)
+                     , ("==", op2code Eq)
+                     , ("/=", op2code Ne)
+
+                     , ("negate", op1code Neg)
+                     ]
+  where
+    pzero op = ([Op op, Return], mempty)
+    psucc n x = ([ Push (Code x), Enter (Arg n) ], snd x <> defSlot [n])
+    prim1 op = psucc 1 $ pzero op  {- <prim1> := [ Push (Code [Op op, Return], Enter (Arg 1)) ] -}
+    prim2 op = psucc 2 $ prim1 op  {- <prim2> := [ Push (Code <prim1>, Enter (Arg 2)) ] -}
+
+    op1code op = mapCode (Take 1 :) $ prim1 op
+    op2code op = mapCode (Take 2 :) $ prim2 op
 
 ---
 
