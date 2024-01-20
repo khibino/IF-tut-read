@@ -339,7 +339,7 @@ amToClosure amode fptr heap cstore = case amode of
   IntConst n    -> (intCode, FrameInt n)
 
 intCode :: CCode
-intCode = mempty
+intCode = ([PushV FramePtr, Return], mempty)
 
 ---
 
