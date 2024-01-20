@@ -239,6 +239,7 @@ compiledPrimitives = [ ("+", op2code Add)
                      , ("/=", op2code Ne)
 
                      , ("negate", op1code Neg)
+                     , ("if", ifcode)
                      ]
   where
     pzero op = ([Op op, Return], mempty)
@@ -248,6 +249,23 @@ compiledPrimitives = [ ("+", op2code Add)
 
     op1code op = mapCode (Take 1 :) $ prim1 op
     op2code op = mapCode (Take 2 :) $ prim2 op
+
+    {- exercise 4.5 -}
+    ifcode = ( [ Take 3
+               , Push (Code ([Cond [Enter (Arg 2)] [Enter (Arg 3)]], defSlot [2,3]))
+               , Enter (Arg 1)
+               ]
+             , defSlot [1,2,3]
+             )
+    {-  if c f t
+
+        if:  Take 3
+             Push (Label L1)
+             Enter (Arg 1)         -- Evaluate c
+
+        L1:  Cond [Enter (Arg 2)]  -- Evaluate f
+                  [Enter (Arg 3)]  -- Evaluate t
+     -}
 
 ---
 
