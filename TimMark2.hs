@@ -288,10 +288,13 @@ compileSC env (name, args, body)
     new_env = zip args (map Arg [1..]) ++ env
 
 compileR :: CoreExpr -> TimCompilerEnv -> CCode
+compileR e@(EAp (EVar "negate") _)    env = compileB e env ([Return], mempty)
+compileR e@(EAp (EAp (EVar opn) _) _) env
+  | isArith2 opn                          = compileB e env ([Return], mempty)
+compileR e@(ENum {})                  env = compileB e env ([Return], mempty)
 compileR (EAp e1 e2)  env = mapAR Push  (compileA e2 env) <> compileR e1 env
 compileR (EVar v)     env = mapAR Enter (compileA (EVar v) env)
-compileR (ENum n)     env = mapAR Enter (compileA (ENum n) env)
-compileR  _e         _env = error "compileR: can't do this yet"
+compileR  e          _env = error $ "compileR: cannot for " ++ show e
 
 mapAR :: (TimAMode -> Instruction) -> (TimAMode, Slots) -> ([Instruction], Slots)
 mapAR f = mapCode (\instA -> [f instA])
@@ -303,6 +306,38 @@ compileA (EVar v)  env = case aLookup env v (error $ "Unknown variable " ++ v) o
 compileA (ENum n) _env = (IntConst n, mempty)
 compileA  e        env = (Code ccode, slots)
   where ccode@(_, slots) = compileR e env
+
+{-exercise 4.6 -}
+{-
+"factorial n = if n 1 (n * factorial (n-1)); main = factorial 3"
+  without vstack        :  204 steps
+  with vstack (+,-,*,/) :  126 steps
+
+"fib n = if (n < 2) 1 (fib (n-1) + fib (n-2)); main = fib 3"
+  without vstack        :  230 steps
+  with vstack (+,-,*,/) :  176 steps
+ -}
+compileB :: CoreExpr -> TimCompilerEnv -> CCode -> CCode
+compileB (EAp (EVar "negate") e)      env cont =  compileB e  env (mapCode (Op Neg :) cont)
+compileB (EAp (EAp (EVar opn) e1) e2) env cont
+  | Just op <- lookup opn arith2               =  compileB e2 env (compileB e1 env (mapCode (Op op :) cont))
+compileB (ENum n)                    _env cont =  mapCode (PushV (IntVConst n) :) cont
+compileB  e                           env cont =  mapCode (Push (Code cont) :) (compileR e env)
+
+isArith2 :: String -> Bool
+isArith2 opn = case lookup opn arith2 of
+  Nothing -> False
+  Just {} -> True
+
+arith2 :: [(String, Op)]
+arith2 =
+  [ ("+", Add), ("-", Sub)
+  , ("*", Mul), ("/", Div)
+  -- , (">", Gt), (">=", Ge)
+  -- , ("<", Lt), ("<=", Le)
+  -- , ("==", Eq), ("/=", Ne)
+  , ("negate", Neg)
+  ]
 
 ---
 
