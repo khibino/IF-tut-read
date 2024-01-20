@@ -475,12 +475,15 @@ pNum :: Parser Int
 pNum = read |$| pSat (all isDigit)
 -- exercise 1.18
 
-syntax :: [Token] -> CoreProgram
-syntax = take_first_parse . pProgram
+runParser :: Parser a -> [Token] -> a
+runParser parser = take_first_parse . parser
   where
     take_first_parse ((prog, []) : others) = prog
     take_first_parse (parse      : others) = take_first_parse others
     take_first_parse other                 = error "Syntax error"
+
+syntax :: [Token] -> CoreProgram
+syntax = runParser pProgram
 
 pProgram :: Parser CoreProgram
 pProgram = pSc `sepBy1` (pLit ";")
@@ -658,6 +661,9 @@ _example_in =
     , "       <1> -> 2 ;"
     , "       <2> -> 5"
     ]
+
+parse' :: Parser a -> String -> a
+parse' parser = runParser parser . clex 1
 
 parse :: String -> CoreProgram
 parse = syntax . clex 1
