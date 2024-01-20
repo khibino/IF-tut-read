@@ -423,7 +423,10 @@ step state@TimState{..} = case instr_ of
     | FrameInt n <- fptr_  -> applyToStats statIncExtime
                               state { instr_ = instr', vstack_ = stkPush n vstack_ }
     | otherwise            -> error $ "unknown PushV frame: " ++ show fptr_
-  PushV x : _              -> error $ "unknown PushV param: " ++ show x
+  {- rule 4.14 -}
+  PushV (IntVConst n) : instr'
+                           -> applyToStats statIncExtime
+                              state { instr_ = instr', vstack_ = stkPush n vstack_ }
 
   []                       -> error $ "instructions is []"
 
