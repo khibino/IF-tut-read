@@ -203,6 +203,14 @@ applyToStats = modify stats_ putStats_
 
 ---
 
+defSlot :: [Int] -> Slots
+defSlot = Set.fromList
+
+mapCode :: (a -> b) -> (a, Slots) -> (b, Slots)
+mapCode f (x, slots) = (f x, slots)
+
+---
+
 compiledPrimitives :: [(Name, CCode)]
 compiledPrimitives = []
 
@@ -220,17 +228,17 @@ compileSC env (name, args, body)
     new_env = zip args (map Arg [1..]) ++ env
 
 compileR :: CoreExpr -> TimCompilerEnv -> CCode
-compileR (EAp e1 e2)  env = liftAR Push  (compileA e2 env) <> compileR e1 env
-compileR (EVar v)     env = liftAR Enter (compileA (EVar v) env)
-compileR (ENum n)     env = liftAR Enter (compileA (ENum n) env)
+compileR (EAp e1 e2)  env = mapAR Push  (compileA e2 env) <> compileR e1 env
+compileR (EVar v)     env = mapAR Enter (compileA (EVar v) env)
+compileR (ENum n)     env = mapAR Enter (compileA (ENum n) env)
 compileR  _e         _env = error "compileR: can't do this yet"
 
-liftAR :: (TimAMode -> Instruction) -> (TimAMode, a) -> ([Instruction], a)
-liftAR f (instA, slotsA) = ([f instA], slotsA)
+mapAR :: (TimAMode -> Instruction) -> (TimAMode, Slots) -> ([Instruction], Slots)
+mapAR f = mapCode (\instA -> [f instA])
 
 compileA :: CoreExpr -> TimCompilerEnv -> (TimAMode, Slots)
 compileA (EVar v)  env = case aLookup env v (error $ "Unknown variable " ++ v) of
-  a@(Arg n) -> (a, Set.singleton n)
+  a@(Arg n) -> (a, defSlot [n])
   a         -> (a, mempty)
 compileA (ENum n) _env = (IntConst n, mempty)
 compileA  e        env = (Code ccode, slots)
