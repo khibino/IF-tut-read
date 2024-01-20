@@ -730,21 +730,26 @@ test' doGC = putStr . fullRun' doGC
 test :: String -> IO ()
 test = test' True
 
-check :: FramePtr -> String -> Either String String
-check expect prog
+check' :: (Eq a, Show a) => (Int -> a) -> (TimState -> a) -> Int  -> String -> Either String String
+check' liftE getV expect prog
   | length states == limit  =  Left  . unlines $ ("expect " ++ show expect) : showProg "too long: "
-  | lastv == expect         =  Right . unlines $ showProg "pass: " ++ [show lastv]
-  | otherwise               =  Left  . unlines $ ("expect " ++ show expect) : showProg "wrong: "
+  | lastv == liftE expect   =  Right . unlines $ showProg "pass: " ++ [show lastv]
+  | otherwise               =  Left  . unlines $ ("expect " ++ show expect) : ("but got " ++ show lastv) : showProg "wrong: "
   where
     states = take limit . eval . compile . parse $ prog
     limit = 100000
-    TimState{..} = last states
-    lastv = fptr_
+    lastv = getV $ last states
 
     showProg word =
       zipWith (++)
       (word : repeat (replicate (length word) ' '))
       (lines prog)
+
+check :: Int -> String -> Either String String
+check = check' FrameInt fptr_
+
+checkV :: Int -> String -> Either String String
+checkV = check' (:[]) (list . vstack_)
 
 ---
 
@@ -765,17 +770,20 @@ test_compose2 = "compose2 f g x = f (g x x) ; main = compose2 I K 3"
 
 ---
 
-checks :: IO ()
-checks = do
+checks' :: (Int -> String -> Either String String) -> IO ()
+checks' chk = do
   mapM_ (either putLn putLn) results
   when (any isLeft results) $ fail "some checks failed!"
   where
-    results = map (uncurry check) checkList
+    results = map (uncurry chk) checkList
     putLn s = putStrLn "" *> putStr s
 
-checkList :: [(FramePtr, String)]
+checks :: IO ()
+checks = checks' checkV
+
+checkList :: [(Int, String)]
 checkList =
-  [ (FrameInt 4, "main = S K K 4")
-  , (FrameInt 4, "id = S K K ; id1 = id id ; main = id1 4")
-  , (FrameInt 3, "compose2 f g x = f (g x x) ; main = compose2 I K 3")
+  [ (4, "main = S K K 4")
+  , (4, "id = S K K ; id1 = id id ; main = id1 4")
+  , (3, "compose2 f g x = f (g x x) ; main = compose2 I K 3")
   ]
