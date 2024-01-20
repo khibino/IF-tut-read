@@ -737,6 +737,11 @@ testEx4_1_a, testEx4_1_b :: String
 testEx4_1_b' = "id x = S K K x ; id1 = id id ; main = id1 4"
 testEx4_1_b' :: String
 
+{- exercise 4.4 -}
+test_ex44 :: String
+test_ex44 = "four = 2 * 2; main = four + four"
+
+
 test_compose2 :: String
 test_compose2 = "compose2 f g x = f (g x x) ; main = compose2 I K 3"
 
