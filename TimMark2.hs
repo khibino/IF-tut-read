@@ -378,6 +378,15 @@ step state@TimState{..} = case instr_ of
     where (n1, v1) = stkPop vstack_
           vstack1 rv = stkPush rv v1
 
+  {- rule 4.13 -}
+  [Cond i1 i2]             -> applyToStats statIncExtime
+                              state { instr_ = instr', vstack_ = vstack' }
+    where (n, vstack') = stkPop vstack_
+          instr'
+            | n == 0     = i1
+            | otherwise  = i2
+  Cond {} : instr          -> error $ "instructions found after Cond: " ++ show instr
+
   {- rule 4.11 -}
   [Return]                 -> applyToStats statIncExtime
                               state { instr_ = instr', islots_ = slots', stack_ = s1, fptr_ = f' }
