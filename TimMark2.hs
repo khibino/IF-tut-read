@@ -772,7 +772,6 @@ testEx4_1_b' :: String
 test_ex44 :: String
 test_ex44 = "four = 2 * 2; main = four + four"
 
-
 test_compose2 :: String
 test_compose2 = "compose2 f g x = f (g x x) ; main = compose2 I K 3"
 
@@ -795,7 +794,11 @@ checkList =
   , (4, "id = S K K ; id1 = id id ; main = id1 4")
   , (3, "compose2 f g x = f (g x x) ; main = compose2 I K 3")
   , (8, "four = 2 * 2; main = four + four")
-  , (1, "main = if 0 1 2")
-  , (2, "main = if 1 1 2")
-  , (6, "fact n = if n 1 (n * fact (n-1)); main = fact 3")
+  , (2, "main = 3 - 1")
+  , (0, "main = 3 > 1")  {- True is 0  -}
+  , (1, "main = 3 < 1")  {- False is 1  -}
+  , (3, "main = if 0 3 4")
+  , (4, "main = if 1 3 4")
+  , (3, "f = if 0; main = f 3 4")  {- higher-order if -}
+  , (6, "factorial n = if n 1 (n * factorial (n-1)); main = factorial 3")
   ]
