@@ -288,10 +288,33 @@ compileSC env (name, args, body)
     new_env = zip args (map Arg [1..]) ++ env
 
 compileR :: CoreExpr -> TimCompilerEnv -> CCode
-compileR e@(EAp (EVar "negate") _)    env = compileB e env ([Return], mempty)
-compileR e@(EAp (EAp (EVar opn) _) _) env
-  | isArith2 opn                          = compileB e env ([Return], mempty)
-compileR e@(ENum {})                  env = compileB e env ([Return], mempty)
+compileR e@(EAp (EVar "negate") _)                 env = compileB e env ([Return], mempty)
+compileR   (EAp (EAp (EAp (EVar "if") ie) te) ee)  env =
+  {- exercise 4.7 -}
+  {-
+"factorial n = if n 1 (n * factorial (n-1)); main = factorial 3"
+  with vstack (+,-,*,/)    : 126 steps
+  with vstack (+,-,*,/,if) : 110 steps
+
+"fib n = if (n < 2) 1 (fib (n-1) + fib (n-2)); main = fib 3"
+  with vstack (+,-,*,/)    : 176 steps
+  with vstack (+,-,*,/,if) : 151 steps
+   -}
+  ([Push (Code ([Cond then_ else_], slThen <> slElse))] ++ if_, slIf <> slThen <> slElse)
+  where (if_  , slIf)    = compileB ie env ([Return], mempty)
+        (then_, slThen)  = compileB te env ([Return], mempty)
+        (else_, slElse)  = compileB ee env ([Return], mempty)
+  {-
+  ([Push (Code else_), Push (Code then_), Push (Code if_),
+    Take 3, Push (Code ([Cond [Enter (Arg 2)] [Enter (Arg 3)]], defSlot [2,3])), Enter (Arg 1)]
+  , slIf <> slThen <> slElse <> defSlot [1,2,3])
+  where if_@(  _, slIf)    = compileB ie env ([Return], mempty)
+        then_@(_, slThen)  = compileB te env ([Return], mempty)
+        else_@(_, slElse)  = compileB ee env ([Return], mempty)
+   -}
+compileR e@(EAp (EAp (EVar opn) _) _)              env
+  | isArith2 opn                                       = compileB e env ([Return], mempty)
+compileR e@(ENum {})                               env = compileB e env ([Return], mempty)
 compileR (EAp e1 e2)  env = mapAR Push  (compileA e2 env) <> compileR e1 env
 compileR (EVar v)     env = mapAR Enter (compileA (EVar v) env)
 compileR  e          _env = error $ "compileR: cannot for " ++ show e
