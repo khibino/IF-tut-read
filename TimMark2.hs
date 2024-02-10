@@ -255,20 +255,23 @@ compiledPrimitives = [ ("+", op2code Add)
     op2code op = mapCode (Take 2 :) $ prim2 op
 
     {- exercise 4.5 -}
+    {- 0 is True, otherwise False
+       if 0 t f = t
+       if n t f = f -}
     ifcode = ( [ Take 3
                , Push (Code ([Cond [Enter (Arg 2)] [Enter (Arg 3)]], defSlot [2,3]))
                , Enter (Arg 1)
                ]
              , defSlot [1,2,3]
              )
-    {-  if c f t
+    {-  if c t f
 
         if:  Take 3
              Push (Label L1)
              Enter (Arg 1)         -- Evaluate c
 
-        L1:  Cond [Enter (Arg 2)]  -- Evaluate f
-                  [Enter (Arg 3)]  -- Evaluate t
+        L1:  Cond [Enter (Arg 2)]  -- Evaluate t
+                  [Enter (Arg 3)]  -- Evaluate f
      -}
 
 ---
@@ -400,7 +403,7 @@ step state@TimState{..} = case instr_ of
     where (n1, v1) = stkPop vstack_
           vstack1 rv = stkPush rv v1
 
-  {- rule 4.13 -}
+  {- rule 4.13 -} {- exersise 4.5 -}
   [Cond i1 i2]             -> applyToStats statIncExtime
                               state { instr_ = instr', vstack_ = vstack' }
     where (n, vstack') = stkPop vstack_
