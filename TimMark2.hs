@@ -225,6 +225,10 @@ mapCode f (x, slots) = (f x, slots)
 
 ---
 
+{- |
+>>> lookup "+" compiledPrimitives
+Just ([Take 2,Push (Code ([Push (Code ([Op Add,Return],fromList [])),Enter (Arg 1)],fromList [1])),Enter (Arg 2)],fromList [1,2])
+ -}
 compiledPrimitives :: [(Name, CCode)]
 compiledPrimitives = [ ("+", op2code Add)
                      , ("-", op2code Sub)
