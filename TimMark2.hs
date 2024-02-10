@@ -397,8 +397,8 @@ step state@TimState{..} = case instr_ of
               Ne   ->  comp2 (/=)
 
             comp2 cop x y
-              | x `cop` y  =  1
-              | otherwise  =  0
+              | x `cop` y  =  0  {- 0   is    True -}
+              | otherwise  =  1  {- otherwise False-}
 
     where (n1, v1) = stkPop vstack_
           vstack1 rv = stkPush rv v1
