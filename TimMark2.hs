@@ -734,12 +734,13 @@ test' doGC = putStr . fullRun' doGC
 test :: String -> IO ()
 test = test' True
 
-check' :: (Eq a, Show a) => (Int -> a) -> (TimState -> a) -> Int  -> String -> Either String String
-check' liftE getV expect prog
-  | length states == limit  =  Left  . unlines $ ("expect " ++ show expect) : showProg "too long: "
-  | lastv == liftE expect   =  Right . unlines $ showProg "pass: " ++ [show lastv]
-  | otherwise               =  Left  . unlines $ ("expect " ++ show expect) : ("but got " ++ show lastv) : showProg "wrong: "
+check' :: (Eq a, Show a) => (Int -> a) -> (TimState -> a) -> Int -> String -> Either String String
+check' liftE getV expectI prog
+  | length states == limit  =  Left  . unlines $ ("expect  " ++ show expect) : showProg "too long: "
+  | lastv == expect         =  Right . unlines $ showProg "pass: " ++ [show lastv]
+  | otherwise               =  Left  . unlines $ ("expect  " ++ show expect) : ("but got " ++ show lastv) : showProg "wrong: "
   where
+    expect = liftE expectI
     states = take limit . eval . compile . parse $ prog
     limit = 100000
     lastv = getV $ last states
