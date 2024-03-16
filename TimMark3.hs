@@ -53,7 +53,7 @@ infixr 5 <:>
 ---
 
 data Instruction
-  = Take Int
+  = Take Int Int
   | Push TimAMode
   | PushV ValueAMode
   | Enter TimAMode
@@ -255,14 +255,14 @@ compiledPrimitives = [ ("+", op2code Add)
     prim1 op = psucc 1 $ pzero op  {- <prim1> := [ Push (Code [Op op, Return], Enter (Arg 1)) ] -}
     prim2 op = psucc 2 $ prim1 op  {- <prim2> := [ Push (Code <prim1>, Enter (Arg 2)) ] -}
 
-    op1code op = mapCode (Take 1 :) $ prim1 op
-    op2code op = mapCode (Take 2 :) $ prim2 op
+    op1code op = mapCode (Take _{- TODO -} 1 :) $ prim1 op
+    op2code op = mapCode (Take _{- TODO -} 2 :) $ prim2 op
 
     {- exercise 4.5 -}
     {- 0 is True, otherwise False
        if 0 t f = t
        if n t f = f -}
-    ifcode = ( [ Take 3
+    ifcode = ( [ Take _{- TODO -} 3
                , Push (Code ([Cond [Enter (Arg 2)] [Enter (Arg 3)]], defSlot [2,3]))
                , Enter (Arg 1)
                ]
@@ -285,7 +285,7 @@ type TimCompilerEnv = [(Name, TimAMode)]
 compileSC :: TimCompilerEnv -> CoreScDefn -> (Name, CCode)
 compileSC env (name, args, body)
   | n == 0    =  (name, (instructions, slots))  {- exercise 4.3 -}
-  | otherwise =  (name, (Take n : instructions, slots))
+  | otherwise =  (name, (Take _ n : instructions, slots))
   where
     n = length args
     (instructions, slots) = compileR body new_env
@@ -436,11 +436,12 @@ timFinal state = null $ instr_ state
  -}
 step :: TimState -> TimState
 step state@TimState{..} = case instr_ of
-  Take n : instr
+  Take t n : instr
     | depth stack_  >= n   -> applyToStats (statAddAllocated n)
                               state { instr_ = instr, fptr_ = fptr', stack_ = discard n stack_, heap_ = heap' }
     | otherwise            -> error "Too few args for Take instructions"
-    where (heap', fptr') = fAlloc heap_ (fst $ stkPopN n stack_)
+    where (heap', fptr') = fAlloc heap_ (fst (stkPopN n stack_) ++ nullcs)
+          nullcs = replicate (t - n) (mempty, FrameNull)
 
   [Enter am]               -> applyToStats statIncExtime
                               state { instr_ = instr', islots_ = slots', fptr_ = fptr' }
@@ -797,7 +798,7 @@ showInstructions Full il =
     instrs = map (showInstruction Full) il
 
 showInstruction :: HowMuchToPrint -> Instruction -> IseqRep
-showInstruction _d (Take m)  = iStr "Take "  <> iNum m
+showInstruction _d (Take t m)  = iStr "Take "  <> iNum t <> iStr " " <> iNum m
 showInstruction  d (Enter x) = iStr "Enter " <> showArg d x
 showInstruction  d (Push x)  = iStr "Push "  <> showArg d x
 showInstruction _d (PushV x) = iStr "PushV " <> iStr (show x)
