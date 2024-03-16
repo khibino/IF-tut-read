@@ -54,6 +54,7 @@ infixr 5 <:>
 
 data Instruction
   = Take Int Int
+  | Move Int TimAMode
   | Push TimAMode
   | PushV ValueAMode
   | Enter TimAMode
@@ -443,6 +444,12 @@ step state@TimState{..} = case instr_ of
     where (heap', fptr') = fAlloc heap_ (fst (stkPopN n stack_) ++ nullcs)
           nullcs = replicate (t - n) (mempty, FrameNull)
 
+  Move n (Code c) : instr  -> applyToStats statIncExtime
+                              state { instr_ = instr, heap_ = heap' }
+    where heap' = fUpdate heap_ fptr_ n (c, fptr_)
+
+  Move {} : _              -> error $ "unknown Move pattern: " ++ show instr_
+
   [Enter am]               -> applyToStats statIncExtime
                               state { instr_ = instr', islots_ = slots', fptr_ = fptr' }
     where ((instr', slots'), fptr') = amToClosure am fptr_ heap_ cstore_
@@ -799,6 +806,7 @@ showInstructions Full il =
 
 showInstruction :: HowMuchToPrint -> Instruction -> IseqRep
 showInstruction _d (Take t m)  = iStr "Take "  <> iNum t <> iStr " " <> iNum m
+showInstruction  d (Move n x) = iStr "Move " <> iNum n <> iStr " " <> showArg d x
 showInstruction  d (Enter x) = iStr "Enter " <> showArg d x
 showInstruction  d (Push x)  = iStr "Push "  <> showArg d x
 showInstruction _d (PushV x) = iStr "PushV " <> iStr (show x)
