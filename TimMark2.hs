@@ -280,10 +280,10 @@ type TimCompilerEnv = [(Name, TimAMode)]
 
 compileSC :: TimCompilerEnv -> CoreScDefn -> (Name, CCode)
 compileSC env (name, args, body)
-  | len == 0  =  (name, (instructions, slots))  {- exercise 4.3 -}
-  | otherwise =  (name, (Take (length args) : instructions, slots))
+  | n == 0    =  (name, (instructions, slots))  {- exercise 4.3 -}
+  | otherwise =  (name, (Take n : instructions, slots))
   where
-    len = length args
+    n = length args
     (instructions, slots) = compileR body new_env
     new_env = zip args (map Arg [1..]) ++ env
 
