@@ -292,7 +292,7 @@ compileR e@(EAp (EVar "negate") _)    env = compileB e env ([Return], mempty)
 compileR e@(EAp (EAp (EVar opn) _) _) env
   | isArith2 opn                          = compileB e env ([Return], mempty)
 compileR   (EAp (EAp (EAp (EVar "if") e) et) ee)  {- exercise 4.7 -}
-                                         env = compileB e env ([Cond ct ce], st <> se)
+                                      env = compileB e env ([Cond ct ce], st <> se)
   where
     (ct, st) = compileR et env
     (ce, se) = compileR ee env
