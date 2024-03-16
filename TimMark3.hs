@@ -422,6 +422,18 @@ doAdmin state = applyToStats statIncSteps state
 timFinal :: TimState -> Bool
 timFinal state = null $ instr_ state
 
+{- exercise 4.10
+
+     Take t n : i f c1:...:cn:s h                                      c
+
+ ⇒             i f'          s h[f':<0:c1,...,n:cn,n+1:_,...,t-1:_>]  c
+       (size of f' is t)
+
+     Move n (Code i) : i  f  s  h                  c
+
+ ⇒                    i  f  s  h[f':<n-1:(i,f)>]  c
+
+ -}
 step :: TimState -> TimState
 step state@TimState{..} = case instr_ of
   Take n : instr
