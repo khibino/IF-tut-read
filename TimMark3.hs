@@ -232,7 +232,7 @@ mapCode f (x, slots) = (f x, slots)
 
 {- |
 >>> lookup "+" compiledPrimitives
-Just ([Take 2,Push (Code ([Push (Code ([Op Add,Return],fromList [])),Enter (Arg 1)],fromList [1])),Enter (Arg 2)],fromList [1,2])
+Just ([Take 2 2,Push (Code ([Push (Code ([Op Add,Return],fromList [])),Enter (Arg 1)],fromList [1])),Enter (Arg 2)],fromList [1,2])
  -}
 compiledPrimitives :: [(Name, CCode)]
 compiledPrimitives = [ ("+", op2code Add)
@@ -256,14 +256,14 @@ compiledPrimitives = [ ("+", op2code Add)
     prim1 op = psucc 1 $ pzero op  {- <prim1> := [ Push (Code [Op op, Return], Enter (Arg 1)) ] -}
     prim2 op = psucc 2 $ prim1 op  {- <prim2> := [ Push (Code <prim1>, Enter (Arg 2)) ] -}
 
-    op1code op = mapCode (Take _{- TODO -} 1 :) $ prim1 op
-    op2code op = mapCode (Take _{- TODO -} 2 :) $ prim2 op
+    op1code op = mapCode (Take 1 1 :) $ prim1 op
+    op2code op = mapCode (Take 2 2 :) $ prim2 op
 
     {- exercise 4.5 -}
     {- 0 is True, otherwise False
        if 0 t f = t
        if n t f = f -}
-    ifcode = ( [ Take _{- TODO -} 3
+    ifcode = ( [ Take 3 3
                , Push (Code ([Cond [Enter (Arg 2)] [Enter (Arg 3)]], defSlot [2,3]))
                , Enter (Arg 1)
                ]
@@ -302,6 +302,7 @@ compileR   (EAp (EAp (EAp (EVar "if") e) et) ee)  {- exercise 4.7 -}
   where
     (dt, (ct, st)) = compileR et env d
     (de, (ce, se)) = compileR ee env d
+{- TODO: add case for let expr -}
 compileR e@(ENum {})                  env d = compileB e env (d, ([Return], mempty))
 compileR (EAp e1 e2)  env  d = (d2, mapAR Push am <> is)
   where
