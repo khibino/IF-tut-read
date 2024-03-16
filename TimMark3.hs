@@ -282,43 +282,52 @@ compiledPrimitives = [ ("+", op2code Add)
 ---
 
 type TimCompilerEnv = [(Name, TimAMode)]
+type FrameIx = Int
 
 compileSC :: TimCompilerEnv -> CoreScDefn -> (Name, CCode)
 compileSC env (name, args, body)
   | n == 0    =  (name, (instructions, slots))  {- exercise 4.3 -}
-  | otherwise =  (name, (Take _ n : instructions, slots))
+  | otherwise =  (name, (Take d' n : instructions, slots))
   where
     n = length args
-    (instructions, slots) = compileR body new_env
+    (d', (instructions, slots)) = compileR body new_env n
     new_env = zip args (map Arg [1..]) ++ env
 
-compileR :: CoreExpr -> TimCompilerEnv -> CCode
-compileR e@(EAp (EVar "negate") _)    env = compileB e env ([Return], mempty)
-compileR e@(EAp (EAp (EVar opn) _) _) env
-  | isArith2 opn                          = compileB e env ([Return], mempty)
+compileR :: CoreExpr -> TimCompilerEnv -> FrameIx -> (FrameIx, CCode)
+compileR e@(EAp (EVar "negate") _)    env d = compileB e env (d, ([Return], mempty))
+compileR e@(EAp (EAp (EVar opn) _) _) env d
+  | isArith2 opn                            = compileB e env (d, ([Return], mempty))
 compileR   (EAp (EAp (EAp (EVar "if") e) et) ee)  {- exercise 4.7 -}
-                                      env = compileB e env ([Cond ct ce], st <> se)
+                                      env d = compileB e env (dt `max` de, ([Cond ct ce], st <> se))
   where
-    (ct, st) = compileR et env
-    (ce, se) = compileR ee env
-compileR e@(ENum {})                  env = compileB e env ([Return], mempty)
-compileR (EAp e1 e2)  env = mapAR Push  (compileA e2 env) <> compileR e1 env
-compileR (EVar v)     env = mapAR Enter (compileA (EVar v) env)
-compileR  e          _env = error $ "compileR: cannot for " ++ show e
+    (dt, (ct, st)) = compileR et env d
+    (de, (ce, se)) = compileR ee env d
+compileR e@(ENum {})                  env d = compileB e env (d, ([Return], mempty))
+compileR (EAp e1 e2)  env  d = (d2, mapAR Push am <> is)
+  where
+    (d1, am) = compileA e2 env d
+    (d2, is) = compileR e1 env d1
+compileR (EVar v)     env  d = (d', mapAR Enter am)
+  where
+    (d', am) = compileA (EVar v) env d
+compileR  e          _env _d = error $ "compileR: cannot for " ++ show e
 
 mapAR :: (TimAMode -> Instruction) -> (TimAMode, Slots) -> ([Instruction], Slots)
 mapAR f = mapCode (\instA -> [f instA])
 
-compileA :: CoreExpr -> TimCompilerEnv -> (TimAMode, Slots)
-compileA (EVar v)  env = case aLookup env v (error $ "Unknown variable " ++ v) of
-  a@(Arg n)            -> (a, defSlot [n])
+compileA :: CoreExpr -> TimCompilerEnv -> FrameIx -> (FrameIx, (TimAMode, Slots))
+compileA (EVar v)  env d = case aLookup env v (error $ "Unknown variable " ++ v) of
+  a@(Arg n)            -> (d, (a, defSlot [n]))
   {- extract slots for local lexical-closure.
-     `Code :: AMode` is not global. global closure (super-combinator) is `Label :: AMode`. -}
-  a@(Code (_, slots))  -> (a, slots)
-  a                    -> (a, mempty)
-compileA (ENum n) _env = (IntConst n, mempty)
-compileA  e        env = (Code ccode, slots)
-  where ccode@(_, slots) = compileR e env
+     `Code :: AMode` is not global. global-closure (super-combinator) is `Label :: AMode`. -}
+  a@(Code (_, slots))  -> (d, (a, slots))
+  a                    -> (d, (a, mempty))
+compileA (ENum n) _env d = (d, (IntConst n, mempty))
+compileA  e        env d = (d', (Code ccode, slots))
+  where (d', ccode@(_, slots)) = compileR e env d
+
+mapFCode :: (a -> b) -> (FrameIx, (a, Slots)) -> (FrameIx, (b, Slots))
+mapFCode f (ix, (x, s)) = (ix, (f x, s))
 
 {- exercise 4.6 -}
 {-
@@ -330,13 +339,13 @@ compileA  e        env = (Code ccode, slots)
   without vstack        :  230 steps
   with vstack (+,-,*,/) :  176 steps
  -}
-compileB :: CoreExpr -> TimCompilerEnv -> CCode -> CCode
-compileB (EAp (EVar "negate") e)      env cont =  compileB e  env (mapCode (Op Neg :) cont)
+compileB :: CoreExpr -> TimCompilerEnv -> (FrameIx, CCode) -> (FrameIx, CCode)
+compileB (EAp (EVar "negate") e)      env cont    =  compileB e  env  (mapFCode (Op Neg :) cont)
 compileB (EAp (EAp (EVar opn) e1) e2) env cont
-  | Just op <- lookup opn arith2               =  compileB e2 env (compileB e1 env (mapCode (Op op :) cont))
-compileB (ENum n)                    _env cont =  mapCode (PushV (IntVConst n) :) cont
-compileB  e                           env cont =  ([Push (Code cont)], slots) <> (compileR e env)
-  where (_, slots) = cont
+  | Just op <- lookup opn arith2                  =  compileB e2 env (compileB e1 env (mapFCode (Op op :) cont))
+compileB (ENum n)                    _env cont    =  mapFCode (PushV (IntVConst n) :) cont
+compileB  e                           env (d, c)  =  fmap (([Push (Code c)], slots) <>) (compileR e env d)
+  where (_, slots) = c
 
 isArith2 :: String -> Bool
 isArith2 opn = case lookup opn arith2 of
