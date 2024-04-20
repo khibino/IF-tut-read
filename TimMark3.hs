@@ -305,17 +305,25 @@ compileR   (EAp (EAp (EAp (EVar "if") e) et) ee)  {- exercise 4.7 -}
   where
     (dt, (ct, st)) = compileR et env d
     (de, (ce, se)) = compileR ee env d
-{- TODO: add case for let expr -}
-compileR (ELet False defns body)      env d = (d', (moves ++ is, gcslots))
+{- DONE: case for let expr -}
+compileR (ELet rec_ defns body)      env d = (d', (moves ++ is, gcslots))
   where
     gcslots = Set.unions (slotR : slots)
     moves = zipWith (\k am -> Move (d + k) am) [1..n] ams
     (d', (is, slotR)) = compileR body env' dn
-    env' = zipWith (\x k -> (x, Arg (d + k))) xs [1..n] ++ env
+    env'
+      | rec_       = envrec
+      | otherwise  = zipWith (\x k -> (x, Arg (d + k))) xs [1..n] ++ env
     (ams, slots) = unzip ps
     (dn, ps) = mapAccumL astep (d + n) es
     (xs, es) = unzip defns
-    astep d_ e = compileA e env d_
+    astep d_ e = compileA e envlet d_
+    envlet
+      | rec_       = envrec
+      | otherwise  = env
+    {- exercise 4.14
+       implement letrec env by applying mkIndMode -}
+    envrec         = zipWith (\x k -> (x, mkIndMode (d + k))) xs [1..n] ++ env
     n = length defns
 compileR e@(ENum {})                  env d = compileB e env (d, ([Return], mempty))
 compileR (EAp e1 e2)  env  d = (d2, mapAR Push am <> is)
@@ -326,6 +334,9 @@ compileR (EVar v)     env  d = (d', mapAR Enter am)
   where
     (d', am) = compileA (EVar v) env d
 compileR  e          _env _d = error $ "compileR: cannot for " ++ show e
+
+mkIndMode :: Int -> TimAMode
+mkIndMode n = Code ([Enter (Arg n)], defSlot [n])
 
 mapAR :: (TimAMode -> Instruction) -> (TimAMode, Slots) -> ([Instruction], Slots)
 mapAR f = mapCode (\instA -> [f instA])
@@ -929,6 +940,9 @@ ex_4_12_with_let = "f x y z = let p = x+y in p+x+y+z ; main = f 1 2 3"
 
 -- 40 steps
 ex_4_12_with_nolet = "g p x y z = p+x+y+z ; f x y z = g (x+y) x y z ; main = f 1 2 3"
+
+{- exercise 4.13 -}
+ex_4_13_pq =  "f x = letrec p = if (x==0) 1 q ; q = if (x==0) p 2 in p+q ; main = f 1"
 
 ---
 
