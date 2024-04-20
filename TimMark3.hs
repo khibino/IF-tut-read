@@ -286,7 +286,7 @@ type FrameIx = Int
 
 compileSC :: TimCompilerEnv -> CoreScDefn -> (Name, CCode)
 compileSC env (name, args, body)
-  | n == 0    =  (name, (instructions, slots))  {- exercise 4.3 -}
+  | d' == 0   =  (name, (instructions, slots))  {- exercise 4.3 -}
   | otherwise =  (name, (Take d' n : instructions, slots))
   where
     n = length args
@@ -303,6 +303,17 @@ compileR   (EAp (EAp (EAp (EVar "if") e) et) ee)  {- exercise 4.7 -}
     (dt, (ct, st)) = compileR et env d
     (de, (ce, se)) = compileR ee env d
 {- TODO: add case for let expr -}
+compileR (ELet False defns body)      env d = (d', (moves ++ is, gcslots))
+  where
+    gcslots = Set.unions (slotR : slots)
+    moves = zipWith (\k am -> Move (d + k) am) [1..n] ams
+    (d', (is, slotR)) = compileR body env' dn
+    env' = zipWith (\x k -> (x, Arg (d + k))) xs [1..n] ++ env
+    (ams, slots) = unzip ps
+    (dn, ps) = mapAccumL astep (d + n) es
+    (xs, es) = unzip defns
+    astep d_ e = compileA e env d_
+    n = length defns
 compileR e@(ENum {})                  env d = compileB e env (d, ([Return], mempty))
 compileR (EAp e1 e2)  env  d = (d2, mapAR Push am <> is)
   where
@@ -444,6 +455,9 @@ timFinal state = null $ instr_ state
 
  ⇒                    i  f  s  h[f':<n-1:(i,f)>]  c
 
+     Move n (IntConst n) : i f s h    c
+
+⇒                         i
  -}
 step :: TimState -> TimState
 step state@TimState{..} = case instr_ of
@@ -454,11 +468,16 @@ step state@TimState{..} = case instr_ of
     where (heap', fptr') = fAlloc heap_ (fst (stkPopN n stack_) ++ nullcs)
           nullcs = replicate (t - n) (mempty, FrameNull)
 
-  Move n (Code c) : instr  -> applyToStats statIncExtime
+  Move n am       : instr  -> applyToStats statIncExtime
                               state { instr_ = instr, heap_ = heap' }
-    where heap' = fUpdate heap_ fptr_ n (c, fptr_)
+    where heap' = fUpdate heap_ fptr_ n (clo, fptr')
+          (clo, fptr') = amToClosure am fptr_ heap_ cstore_
 
-  Move {} : _              -> error $ "unknown Move pattern: " ++ show instr_
+  -- Move n (Code c) : instr  -> applyToStats statIncExtime
+  --                             state { instr_ = instr, heap_ = heap' }
+  --   where heap' = fUpdate heap_ fptr_ n (c, fptr_)
+
+  -- Move {} : _              -> error $ "unknown Move pattern: " ++ show instr_
 
   [Enter am]               -> applyToStats statIncExtime
                               state { instr_ = instr', islots_ = slots', fptr_ = fptr' }
