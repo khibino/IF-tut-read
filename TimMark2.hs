@@ -335,12 +335,26 @@ isArith2 opn = case lookup opn arith2 of
   Just {} -> True
 
 arith2 :: [(String, Op)]
-arith2 =
+arith2
+  | not ex46   = arith2_
+  | otherwise  = arith2Ex46
+  where ex46 = False
+
+arith2_ :: [(String, Op)]
+arith2_ =
   [ ("+", Add), ("-", Sub)
   , ("*", Mul), ("/", Div)
-  -- , (">", Gt), (">=", Ge)
-  -- , ("<", Lt), ("<=", Le)
-  -- , ("==", Eq), ("/=", Ne)
+  , (">", Gt), (">=", Ge)
+  , ("<", Lt), ("<=", Le)
+  , ("==", Eq), ("/=", Ne)
+  , ("negate", Neg)
+  ]
+
+{- arith op2 for exercise 4.6 -}
+arith2Ex46 :: [(String, Op)]
+arith2Ex46 =
+  [ ("+", Add), ("-", Sub)
+  , ("*", Mul), ("/", Div)
   , ("negate", Neg)
   ]
 
