@@ -873,4 +873,6 @@ checkList =
   , (4, "main = if 1 3 4")
   , (3, "f = if 0; main = f 3 4")  {- higher-order if -}
   , (6, "factorial n = if n 1 (n * factorial (n-1)); main = factorial 3")
+  , (1, "f x y = x == y ; main = f 2 3")  {- TODO: TimMark2 with GC -} {- False is 1 -}
+  , (6, "f x y = x * y ; main = f 2 3")  {- TODO: TimMark2 with GC -}
   ]
