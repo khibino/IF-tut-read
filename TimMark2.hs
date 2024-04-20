@@ -794,14 +794,14 @@ test' doGC = putStr . fullRun' doGC
 test :: String -> IO ()
 test = test' True
 
-check' :: (Eq a, Show a) => (Int -> a) -> (TimState -> a) -> Int -> String -> Either String String
-check' liftE getV expectI prog
+check' :: (Eq a, Show a) => (Int -> a) -> (TimState -> a) -> Bool -> Int -> String -> Either String String
+check' liftE getV doGC expectI prog
   | length states == limit  =  Left  . unlines $ ("expect  " ++ show expect) : showProg "too long: "
   | lastv == expect         =  Right . unlines $ showProg "pass: " ++ [show lastv]
   | otherwise               =  Left  . unlines $ ("expect  " ++ show expect) : ("but got " ++ show lastv) : showProg "wrong: "
   where
     expect = liftE expectI
-    states = take limit . eval . compile . parse $ prog
+    states = take limit . eval' doGC . compile . parse $ prog
     limit = 100000
     lastv = getV $ last states
 
@@ -810,10 +810,10 @@ check' liftE getV expectI prog
       (word : repeat (replicate (length word) ' '))
       (lines prog)
 
-check :: Int -> String -> Either String String
+check :: Bool -> Int -> String -> Either String String
 check = check' FrameInt fptr_
 
-checkV :: Int -> String -> Either String String
+checkV :: Bool -> Int -> String -> Either String String
 checkV = check' (:[]) (list . vstack_)
 
 ---
@@ -843,12 +843,18 @@ test_compose2 = "compose2 f g x = f (g x x) ; main = compose2 I K 3"
 
 ---
 
-checks' :: (Int -> String -> Either String String) -> IO ()
+checks' :: (Bool -> Int -> String -> Either String String) -> IO ()
 checks' chk = do
-  mapM_ (either putLn putLn) results
-  when (any isLeft results) $ fail "some checks failed!"
+  mapM_ putResult results
+  when (any isLeft $ map fst results) $ fail "some checks failed!"
   where
-    results = map (uncurry chk) checkList
+    results =
+      [ (uncurry (chk doGC) ck, doGC)
+      | ck <- checkList
+      , doGC <- [False, True]
+      ]
+    putResult (res, doGC) =
+      putLn $ "gc: " ++ (if doGC then "on" else "off") ++ "\n" ++ either id id res
     putLn s = putStrLn "" *> putStr s
 
 checks :: IO ()
