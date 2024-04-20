@@ -923,6 +923,13 @@ test_compose2 = "compose2 f g x = f (g x x) ; main = compose2 I K 3"
 test_multipleof3 :: String
 test_multipleof3 = "multipleof3 x = ((x / 3) * 3) == x ; f y = if (multipleof3 y) 0 1 ; main = f 5"
 
+{- exercise 4.12 -}
+-- 35 steps
+ex_4_12_with_let = "f x y z = let p = x+y in p+x+y+z ; main = f 1 2 3"
+
+-- 40 steps
+ex_4_12_with_nolet = "g p x y z = p+x+y+z ; f x y z = g (x+y) x y z ; main = f 1 2 3"
+
 ---
 
 checks0 :: (Bool -> Int -> String -> Either String String) -> IO ()
