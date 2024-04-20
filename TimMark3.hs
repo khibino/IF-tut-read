@@ -907,6 +907,13 @@ test_fib10 = "fib n = if (n < 2) 1 (fib (n-1) + fib (n-2)); main = fib 10"
 test_compose2 :: String
 test_compose2 = "compose2 f g x = f (g x x) ; main = compose2 I K 3"
 
+{- exercise 4.12 -}
+-- 35 steps
+ex_4_12_with_let = "f x y z = let p = x+y in p+x+y+z ; main = f 1 2 3"
+
+-- 40 steps
+ex_4_12_with_nolet = "g p x y z = p+x+y+z ; f x y z = g (x+y) x y z ; main = f 1 2 3"
+
 ---
 
 checks' :: (Bool -> Int -> String -> Either String String) -> IO ()
