@@ -367,8 +367,12 @@ mapFCode f (ix, (x, s)) = (ix, (f x, s))
  -}
 compileB :: CoreExpr -> TimCompilerEnv -> (FrameIx, CCode) -> (FrameIx, CCode)
 compileB (EAp (EVar "negate") e)      env cont    =  compileB e  env  (mapFCode (Op Neg :) cont)
-compileB (EAp (EAp (EVar opn) e1) e2) env cont
-  | Just op <- lookup opn arith2                  =  compileB e2 env (compileB e1 env (mapFCode (Op op :) cont))
+compileB (EAp (EAp (EVar opn) e1) e2) env cont@(d, _)
+  {- exercise 4.15 -}
+  | Just op <- lookup opn arith2
+  , let (d1, am1) = compileB e1 env (mapFCode (Op op :) cont)
+        (d2, am2) = compileB e2 env (d, am1)
+                                                  = (d1 `max` d2, am2)
 compileB (ENum n)                    _env cont    =  mapFCode (PushV (IntVConst n) :) cont
 compileB  e                           env (d, c)  =  fmap (([Push (Code c)], slots) <>) (compileR e env d)
   where (_, slots) = c
