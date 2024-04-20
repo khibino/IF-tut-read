@@ -673,7 +673,7 @@ showState :: TimState -> IseqRep
 showState TimState{..} =
   iConcat
   [ iStr "Code:   ", showInstructions Terse instr_, iNewline
-  , showFrameDeref heap_ fptr_
+  , showFrame heap_ fptr_
   , showStack stack_
   , showValueStack vstack_
   , showDump dump_
@@ -681,15 +681,10 @@ showState TimState{..} =
   , iNewline
   ]
 
-showFrameDeref :: TimHeap -> FramePtr -> IseqRep
-showFrameDeref _heap FrameNull = iStr "Null frame ptr" <> iNewline
-showFrameDeref heap (FrameAddr addr) =
-  iConcat
-  [ iStr "Frame: <"
-  , iIndent (iInterleave iNewline $ map showClosure $ fList $ hLookup heap addr)
-  , iStr ">", iNewline
-  ]
-showFrameDeref _heap (FrameInt n) = iConcat [ iStr "Frame ptr (int): ", iNum n, iNewline ]
+showFrame :: TimHeap -> FramePtr -> IseqRep
+showFrame _heap FrameNull        = iStr "Frame (null)" <> iNewline
+showFrame heap (FrameAddr addr)  = iConcat [ iStr "Frame (addr): ", showHeapEntry addr (hLookup heap addr), iNewline ]
+showFrame _heap (FrameInt n)     = iConcat [ iStr "Frame (int): ", iNum n, iNewline ]
 
 showStack :: TimStack -> IseqRep
 showStack stack =
@@ -712,29 +707,35 @@ showHeap heap =
   , iIndent (iInterleave iNewline $ map showEnt $ allocs heap)
   , iStr "]"
   ]
-  where showEnt (a, f) = iStr (show a) <> iStr ": " <> showFrame f
+  where showEnt = uncurry showHeapEntry
 
-showFrame :: Frame -> IseqRep
-showFrame (Frame cls) =
+showHeapEntry :: Addr -> Frame -> IseqRep
+showHeapEntry a f = iStr (showAddr a) <> iStr ": " <> showHeapFrame f
+
+showHeapFrame :: Frame -> IseqRep
+showHeapFrame (Frame cls) =
   iConcat
-  [ iStr "Frame: ["
+  [ iStr "Frame: <"
   , iIndent (iInterleave iNewline $ map showClosure cls)
-  , iStr "]"
+  , iStr ">"
   ]
-showFrame (Forward a) = iStr "Forward: " <> iStr (show a)
+showHeapFrame (Forward a) = iStr "Forward: " <> iStr (showAddr a)
 
 showClosure :: Closure -> IseqRep
 showClosure ((i, ss), f) =
   iConcat
   [ iStr "(", showInstructions Terse i, iStr ", "
-  , showSlots ss, iStr ", "
-  , showFramePtr f, iStr ")"
+  , iStr "Slots: ", showSlots ss, iStr ", "
+  , iStr "FramePtr: ", showFramePtr f, iStr ")"
   ]
 
 showFramePtr :: FramePtr -> IseqRep
 showFramePtr FrameNull = iStr "null"
-showFramePtr (FrameAddr a) = iStr (show a)
+showFramePtr (FrameAddr a) = iStr (showAddr a)
 showFramePtr (FrameInt n) = iStr "int " <> iNum n
+
+showAddr :: Addr -> String
+showAddr addr = '#' : show addr
 
 showStats :: TimState -> IseqRep
 showStats TimState{..} =
@@ -775,8 +776,7 @@ showInstruction  d (Cond t e) = iStr "Cond"                       <> iNewline <>
 showArg :: HowMuchToPrint -> TimAMode -> IseqRep
 showArg d a = case a of
   Arg m         -> iStr "Arg "  <> iNum m
-  Code (il, ss) -> iStr "Code " <> showInstructions d il <> iNewline <>
-                   iIndent (iStr "     ( Slots: " <> showSlots ss <> iStr " )")
+  Code (il, ss) -> iStr "Code " <> showInstructions d il <> iStr " (Slots: " <> showSlots ss <> iStr ")"
   Label s       -> iStr "Label " <> iStr s
   IntConst n    -> iStr "IntConst " <> iNum n
 
