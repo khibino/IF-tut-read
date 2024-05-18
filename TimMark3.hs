@@ -357,7 +357,8 @@ compileB (EAp (EAp (EVar opn) e1) e2) env cont@(d, _)
         (d2, am2) = compileB e2 env (d, am1)
                                                    = (d1 `max` d2, am2)
 compileB (ENum n)                    _env cont =  mapFCode (PushV (IntVConst n) :) cont
-compileB  e                           env (d, c) =  mapFCode (Push (Code c) :) (compileR e env d)
+compileB  e                           env (d, c) =  fmap (([Push (Code c)], slots) <>) (compileR e env d)
+  where (_, slots) = c
 
 isArith2 :: String -> Bool
 isArith2 opn = case lookup opn arith2 of
