@@ -328,7 +328,8 @@ compileB (EAp (EVar "negate") e)      env cont =  compileB e  env (mapCode (Op N
 compileB (EAp (EAp (EVar opn) e1) e2) env cont
   | Just op <- lookup opn arith2               =  compileB e2 env (compileB e1 env (mapCode (Op op :) cont))
 compileB (ENum n)                    _env cont =  mapCode (PushV (IntVConst n) :) cont
-compileB  e                           env cont =  mapCode (Push (Code cont) :) (compileR e env)
+compileB  e                           env cont =  ([Push (Code cont)], slots) <> (compileR e env)
+  where (_, slots) = cont
 
 isArith2 :: String -> Bool
 isArith2 opn = case lookup opn arith2 of
