@@ -309,6 +309,10 @@ compileR   (EAp (EAp (EAp (EVar "if") e) et) ee)  {- exercise 4.7 -}
 compileR (ELet rec_ defns body)      env d = (d', (moves ++ is, gcslots))
   where
     gcslots = Set.unions (slotR : slots)
+    {- TODO: about ams.
+       local closure は super combinator のフレームを参照するので、
+       残すスロット集合は super combinator に合わせる必要がある.
+     -}
     moves = zipWith (\k am -> Move (d + k) am) [1..n] ams
     (d', (is, slotR)) = compileR body env' dn
     env'
