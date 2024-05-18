@@ -97,6 +97,7 @@ data TimState =
   , heap_     :: TimHeap
   , cstore_   :: CodeStore
   , stats_    :: TimStats
+  , gcDump_  :: IseqRep
   }
   deriving Show
 
@@ -375,6 +376,7 @@ compile program =
   , heap_    = hInitial
   , cstore_  = compiled_code
   , stats_   = statInitial
+  , gcDump_  = mempty
   }
   where
     sc_defs           = preludeDefs ++ program
@@ -497,7 +499,7 @@ intCode = ([PushV FramePtr, Return], mempty)
 ---
 
 gc :: TimState -> TimState
-gc s@TimState{..} = s { fptr_ = fptr1, stack_ = stack1, heap_ = dheap }
+gc s@TimState{..} = s { fptr_ = fptr1, stack_ = stack1, heap_ = dheap, gcDump_ = gcDump }
   where
     dheap = uncurry scavengeHeap heaps2
 
@@ -517,6 +519,17 @@ gc s@TimState{..} = s { fptr_ = fptr1, stack_ = stack1, heap_ = dheap }
 
     clist0 = list stack_
     heaps0 = (heap_, hInitial)
+
+    -----
+    gcDump =
+      iStr "GC Dump:" <> iNewline <> iStr "  " <>
+      iIndent (title "Before GC"                 <> showHeap' "       " heap_   <>
+               title "After Evacuate Stack"      <> showHeaps           heaps1  <>
+               title "After Evacuate Frame-Ptr"  <> showHeaps           heaps2  <>
+               title "After GC (Scavenge)"       <> showHeap' "       " dheap)
+    title tag = iStr tag <> iStr ":" <> iNewline
+    showHeap' tag h = iStr tag <> showHeap h <> iNewline
+    showHeaps (sh, dh) = showHeap' ("  src: ") sh <> showHeap' ("  dst: ") dh
 
 {- |
 >>> uncurry evacuateAddr _cyclic1
@@ -671,8 +684,9 @@ showSC (name, (il, slots)) =
 
 showState :: TimState -> IseqRep
 showState TimState{..} =
-  iConcat
-  [ iStr "Code:   ", showInstructions Terse instr_, iNewline
+  iConcat $
+  gcDump_ : iNewline :
+  [ iStr "Code:   ", showInstructions Terse instr_, iStr " Slots: ", showSlots islots_ , iNewline
   , showFrame heap_ fptr_
   , showStack stack_
   , showValueStack vstack_
