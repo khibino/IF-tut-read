@@ -982,4 +982,7 @@ checkList =
   , (6, "factorial n = if n 1 (n * factorial (n-1)); main = factorial 3")
   , (1, "f x y = x == y ; main = f 2 3")  {- DONE: TimMark2 with GC -} {- False is 1 -}
   , (6, "f x y = x * y ; main = f 2 3")  {- DONE: TimMark2 with GC -}
+  , (5, "g p y = p + y; f x y = g (x + y) y; main = f 1 2")
+  , (3, "f x y = letrec p = x + y in p ; main = f 1 2" ) {- TODO: TimMark3 with GC -}
+  , (5, "f x y = let p = x + y in p + y; main = f 1 2") {- TODO: TimMark3 with GC -}
   ]
