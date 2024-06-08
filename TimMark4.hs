@@ -63,6 +63,7 @@ data Instruction
   | Move Int TimAMode
   | Push TimAMode
   | PushV ValueAMode
+  | PushMarker Int
   | Enter TimAMode
   | Return
   | Op Op
@@ -348,6 +349,9 @@ compileR  e          _env _d = error $ "compileR: cannot for " ++ show e
 mkIndMode :: Int -> TimAMode
 mkIndMode n = Code ([Enter (Arg n)], defSlot [n])
 
+mkUpdIndMode :: Int -> TimAMode
+mkUpdIndMode n = Code ([PushMarker n, Enter (Arg n)], defSlot [n])
+
 mapAR :: (TimAMode -> Instruction) -> (TimAMode, Slots) -> ([Instruction], Slots)
 mapAR f = mapCode (\instA -> [f instA])
 
@@ -549,10 +553,17 @@ step state@TimState{..} = case instr_ of
             | otherwise  = i2
   Cond {} : instr          -> error $ "instructions found after Cond: " ++ show instr
 
-  {- rule 4.11 -}
-  [Return]                 -> applyToStats statIncExtime
+  {- rule 4.11 -} {- rule 4.16 -}
+  [Return]             -> case stkPopSafe stack_ of
+    Nothing              -> case dump_ of
+      []                   -> error "step:Return: TimStack is null and TimDump is null!"
+      (fu, x, s):d         -> applyToStats statIncExtime
+                              state { {- keep instr_ -} fptr_ = fu, stack_ = s, {- keep vstack -} dump_ = d, heap_ = h' }
+        where (n, _v) = stkPop vstack_
+              h' = fUpdate heap_ fu x (intCode, FrameInt n)
+    Just (((instr', slots'), f'), s1)
+                           -> applyToStats statIncExtime
                               state { instr_ = instr', islots_ = slots', stack_ = s1, fptr_ = f' }
-    where (((instr', slots'), f'), s1) = stkPop stack_
   Return : instr           -> error $ "instructions found after Return: " ++ show instr
 
   {- rule 4.12 -}
@@ -564,6 +575,10 @@ step state@TimState{..} = case instr_ of
   PushV (IntVConst n) : instr'
                            -> applyToStats statIncExtime
                               state { instr_ = instr', vstack_ = stkPush n vstack_ }
+
+  {- rule 4.15 -}
+  PushMarker x : instr'    -> applyToStats statIncExtime
+                              state { instr_ = instr', stack_ = stkEmpty stack_ , dump_ = (fptr_, x, stack_) : dump_ }
 
   []                       -> error $ "instructions is []"
 
