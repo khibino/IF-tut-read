@@ -304,7 +304,7 @@ compileSC env (name, args, body)
     n = length args
     instructions = fillSlotsSC slots insts0
     (d', (insts0, slots)) = compileR body new_env n
-    new_env = zip args (map Arg [1..]) ++ env
+    new_env = zip args (map mkUpdIndMode [1..]) ++ env
 
 fillSlotsSC :: Slots -> [Instruction] -> [Instruction]
 fillSlotsSC slots = map instr
@@ -337,7 +337,7 @@ compileR (ELet rec_ defns body)      env d = (d', (moves ++ is, gcslots))
     (d', (is, slotR)) = compileR body env' dn
     env'
       | rec_       = envrec
-      | otherwise  = zipWith (\x k -> (x, Arg (d + k))) xs [1..n] ++ env
+      | otherwise  = zipWith (\x k -> (x, mkUpdIndMode (d + k))) xs [1..n] ++ env
     (ams, slots) = unzip ps
     (dn, ps) = mapAccumL astep (d + n) es
     (xs, es) = unzip defns
@@ -345,7 +345,7 @@ compileR (ELet rec_ defns body)      env d = (d', (moves ++ is, gcslots))
     envlet
       | rec_       = envrec
       | otherwise  = env
-    envrec         = zipWith (\x k -> (x, mkIndMode (d + k))) xs [1..n] ++ env
+    envrec         = zipWith (\x k -> (x, mkUpdIndMode (d + k))) xs [1..n] ++ env
     n = length defns
 compileR e@(ENum {})                  env d = compileB e env (d, ([Return], mempty))
 compileR (EAp e1 e2)  env  d = (d2, mapAR Push am <> is)
