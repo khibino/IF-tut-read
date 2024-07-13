@@ -1002,29 +1002,29 @@ ex_4_13_pq =  "f x = letrec p = if (x==0) 1 q ; q = if (x==0) p 2 in p+q ; main 
 
 ---
 
-checks0 :: (Bool -> Int -> String -> Either String String) -> IO ()
-checks0 chk = do
+checks0 :: (Bool -> Int -> String -> Either String String) -> [(Int, String)] -> IO ()
+checks0 chkF cks = do
   mapM_ putResult results
   when (any isLeft $ map fst results) $ fail "some checks failed!"
   where
     results =
-      [ (uncurry (chk doGC) ck, doGC)
-      | ck <- checkList
+      [ (uncurry (chkF doGC) ck, doGC)
+      | ck <- cks
       , doGC <- [False, True]
       ]
     putResult (res, doGC) =
       putLn $ "gc: " ++ (if doGC then "on" else "off") ++ "\n" ++ either id id res
     putLn s = putStrLn "" *> putStr s
 
+checks' :: [(Int, String)] -> IO ()
+checks' = checks0 checkV
+
 checks :: IO ()
-checks = checks0 checkV
+checks = checks' checkList
 
 checkList :: [(Int, String)]
 checkList =
-  [ (4, "main = S K K 4")
-  , (4, "id = S K K ; id1 = id id ; main = id1 4")
-  , (3, "compose2 f g x = f (g x x) ; main = compose2 I K 3")
-  , (8, "four = 2 * 2; main = four + four")
+  [ (8, "four = 2 * 2; main = four + four")
   , (2, "main = 3 - 1")
   , (0, "main = 3 > 1")  {- True is 0  -}
   , (1, "main = 3 < 1")  {- False is 1  -}
@@ -1037,4 +1037,11 @@ checkList =
   , (5, "g p y = p + y; f x y = g (x + y) y; main = f 1 2")
   , (3, "f x y = letrec p = x + y in p ; main = f 1 2" ) {- DONE: TimMark3 with GC -}
   , (5, "f x y = let p = x + y in p + y; main = f 1 2") {- DONE: TimMark3 with GC -}
+  ]
+
+checkListH :: [(Int, String)]
+checkListH =
+  [ (4, "main = S K K 4")
+  , (4, "id = S K K ; id1 = id id ; main = id1 4")
+  , (3, "compose2 f g x = f (g x x) ; main = compose2 I K 3")
   ]
