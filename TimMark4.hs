@@ -902,6 +902,9 @@ nTerse = 3
 
 ---
 
+pprCompile :: CoreProgram -> IO ()
+pprCompile = putStr . iDisplay . showSCDefns . compile
+
 test' :: Bool -> String -> IO ()
 test' doGC = putStr . fullRun' doGC
 
