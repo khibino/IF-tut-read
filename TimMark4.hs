@@ -886,6 +886,7 @@ showInstruction  d (Move n x) = iStr "Move " <> iNum n <> iStr " " <> showArg d 
 showInstruction  d (Enter x) = iStr "Enter " <> showArg d x
 showInstruction  d (Push x)  = iStr "Push "  <> showArg d x
 showInstruction _d (PushV x) = iStr "PushV " <> iStr (show x)
+showInstruction _d (PushMarker i) = iStr "PushMarker " <> iStr (show i)
 showInstruction _d  Return   = iStr "Return"
 showInstruction _d (Op op)   = iStr $ "Op " <> show op
 showInstruction  d (Cond t e) = iStr "Cond"                       <> iNewline <>
