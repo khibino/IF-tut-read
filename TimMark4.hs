@@ -359,7 +359,7 @@ compileR (EAp e1 e2)  env  d = (d2, mapAR Push am <> is)
   where
     (d1, am) = compileA e2 env d
     (d2, is) = compileR e1 env d1
-compileR (EVar v)     env  d = (d', mapAR Enter am)
+compileR (EVar v)     env  d = (d', mkEnter am)  {- exercise 4.17 -}
   where
     (d', am) = compileA (EVar v) env d
 compileR  e          _env _d = error $ "compileR: cannot for " ++ show e
@@ -369,6 +369,11 @@ mkIndMode n = Code ([Enter (Arg n)], defSlot [n])
 
 mkUpdIndMode :: Int -> TimAMode
 mkUpdIndMode n = Code ([PushMarker n, Enter (Arg n)], defSlot [n])
+
+{- exercise 4.17 -}
+mkEnter :: (TimAMode, Slots) -> CCode
+mkEnter (Code (i, s1), s2)  = (i, Set.union s1 s2)
+mkEnter otherAm             = mapAR Enter otherAm
 
 mapAR :: (TimAMode -> Instruction) -> (TimAMode, Slots) -> ([Instruction], Slots)
 mapAR f = mapCode (\instA -> [f instA])
@@ -1004,6 +1009,9 @@ text_4_5_2 = "g x = h x x ; h p q = p - q ; main = g 2"
 
 {- exercise 4.16 -}
 ex_4_16 = "f x = x + x ; main = f (1+2)"
+
+{- exercise 4.17 -}
+ex_4_17 = "compose f g x = f (g x)"
 
 ---
 
