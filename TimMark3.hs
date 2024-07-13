@@ -7,6 +7,7 @@ import Language
 
 ---
 
+import GHC.Stack (HasCallStack)
 import Control.Monad (when)
 import Data.Either (isLeft)
 import Data.List (mapAccumL)
@@ -31,9 +32,13 @@ stkPush :: a -> Stack a -> Stack a
 stkPush x Stack { list = xs, depth = d, maxDepth = maxd } =
   Stack { list = x:xs, depth = d+1, maxDepth = max (d + 1) maxd }
 
-stkPop :: Stack a -> (a, Stack a)
-stkPop s@Stack { list = xs, depth = d } =
-  (head xs, s { list = tail xs, depth = d - 1})
+stkPopSafe :: Stack a -> Maybe (a, Stack a)
+stkPopSafe s@Stack { list = xs0, depth = d } = case xs0 of
+  []    -> Nothing
+  x:xs  -> Just (x, s { list = xs, depth = d - 1})
+
+stkPop :: HasCallStack => Stack a -> (a, Stack a)
+stkPop = maybe (error "stkPop: empty stack!") id . stkPopSafe
 
 stkPopN :: Int -> Stack a -> ([a], Stack a)
 stkPopN n s@(Stack { list = xs, depth = d }) = (hd, s { list = tl, depth = max (d - n) 0 })
@@ -45,6 +50,9 @@ discard n s = snd $ stkPopN n s
 
 (<:>) :: a -> Stack a -> Stack a
 (<:>) = stkPush
+
+stkEmpty :: Stack a -> Stack a
+stkEmpty s = s { depth = 0, list = [] }
 
 infixr 5 <:>
 
