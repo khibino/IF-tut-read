@@ -308,7 +308,7 @@ compileSC env (name, args, body)
     n = length args
     instructions = fillSlotsSC slots insts0  {- apply slots depending on lexical-scope of Super-Combinator -}
     (d', (insts0, slots)) = compileR body new_env n
-    new_env = zip args (map Arg [1..]) ++ env
+    new_env = zip args (map mkUpdIndMode [1..]) ++ env
 
 {- per SC replacing slots of AMode, corresponding to lexical-closure -}
 fillSlotsSC :: Slots -> [Instruction] -> [Instruction]
@@ -341,9 +341,7 @@ compileR (ELet rec_ defns body)      env d = (d', (moves ++ is, gcslots))
      -}
     moves = zipWith (\k am -> Move (d + k) am) [1..n] ams
     (d', (is, slotR)) = compileR body env' dn
-    env'
-      | rec_       = envrec
-      | otherwise  = zipWith (\x k -> (x, Arg (d + k))) xs [1..n] ++ env
+    env' = envrec
     (ams, slots) = unzip ps
     (dn, ps) = mapAccumL astep (d + n) es
     (xs, es) = unzip defns
@@ -353,7 +351,8 @@ compileR (ELet rec_ defns body)      env d = (d', (moves ++ is, gcslots))
       | otherwise  = env
     {- exercise 4.14
        implement letrec env by applying mkIndMode -}
-    envrec         = zipWith (\x k -> (x, mkIndMode (d + k))) xs [1..n] ++ env
+    {- intro mkUpdIndMode, section 4.5.2 -}
+    envrec         = zipWith (\x k -> (x, mkUpdIndMode (d + k))) xs [1..n] ++ env
     n = length defns
 compileR e@(ENum {})                  env d = compileB e env (d, ([Return], mempty))
 compileR (EAp e1 e2)  env  d = (d2, mapAR Push am <> is)
