@@ -1021,10 +1021,7 @@ checks = checks' checkV
 
 checkList :: [(Int, String)]
 checkList =
-  [ (4, "main = S K K 4")
-  , (4, "id = S K K ; id1 = id id ; main = id1 4")
-  , (3, "compose2 f g x = f (g x x) ; main = compose2 I K 3")
-  , (8, "four = 2 * 2; main = four + four")
+  [ (8, "four = 2 * 2; main = four + four")
   , (2, "main = 3 - 1")
   , (0, "main = 3 > 1")  {- True is 0  -}
   , (1, "main = 3 < 1")  {- False is 1  -}
@@ -1037,4 +1034,11 @@ checkList =
   , (5, "g p y = p + y; f x y = g (x + y) y; main = f 1 2")
   , (3, "f x y = letrec p = x + y in p ; main = f 1 2" ) {- DONE: TimMark3 with GC -}
   , (5, "f x y = let p = x + y in p + y; main = f 1 2") {- DONE: TimMark3 with GC -}
+  ]
+
+checkListH :: [(Int, String)]
+checkListH =
+  [ (4, "main = S K K 4")
+  , (4, "id = S K K ; id1 = id id ; main = id1 4")
+  , (3, "compose2 f g x = f (g x x) ; main = compose2 I K 3")
   ]
