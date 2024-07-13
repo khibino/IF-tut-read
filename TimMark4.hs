@@ -137,7 +137,12 @@ type Closure = (CCode, FramePtr)
 ---
 
 type TimValueStack = Stack Int
-data TimDump = DummyTimDump deriving Show
+
+type TimDump =
+  [ (FramePtr,  -- ^ The frame to be updated
+     Int,       -- ^ Index of slot to be updated
+     TimStack)  -- ^ Old stack
+  ]
 
 type TimHeap = Heap Frame
 
@@ -220,7 +225,7 @@ initialValueStack :: TimValueStack
 initialValueStack = Stack [] 0 0
 
 initialDump :: TimDump
-initialDump = DummyTimDump
+initialDump = []
 
 ---
 
