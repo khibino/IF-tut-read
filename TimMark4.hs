@@ -1000,6 +1000,11 @@ ex_4_12_with_nolet = "g p x y z = p+x+y+z ; f x y z = g (x+y) x y z ; main = f 1
 {- exercise 4.13 -}
 ex_4_13_pq =  "f x = letrec p = if (x==0) 1 q ; q = if (x==0) p 2 in p+q ; main = f 1"
 
+text_4_5_2 = "g x = h x x ; h p q = p - q ; main = g 2"
+
+{- exercise 4.16 -}
+ex_4_16 = "f x = x + x ; main = f (1+2)"
+
 ---
 
 checks0 :: (Bool -> Int -> String -> Either String String) -> [(Int, String)] -> IO ()
