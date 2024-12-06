@@ -24,7 +24,8 @@ data Stack a =
   deriving Show
 
 stkOfList :: [a] -> Int -> Stack a
-stkOfList xs md = Stack { list = xs, depth = length xs, maxDepth = md }
+stkOfList xs md = Stack { list = xs, depth = d, maxDepth = d `max` md }
+  where d = length xs
 
 stkPush :: a -> Stack a -> Stack a
 stkPush x Stack { list = xs, depth = d, maxDepth = maxd } =
