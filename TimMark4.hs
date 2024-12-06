@@ -65,6 +65,7 @@ data Instruction
   | Push TimAMode
   | PushV ValueAMode
   | PushMarker Int
+  | UpdateMarkers Int
   | Enter TimAMode
   | Return
   | Op Op
@@ -302,8 +303,8 @@ type FrameIx = Int
 
 compileSC :: TimCompilerEnv -> CoreScDefn -> (Name, CCode)
 compileSC env (name, args, body)
-  | d' == 0   =  (name, (instructions, slots))  {- exercise 4.3 -}
-  | otherwise =  (name, (Take d' n : instructions, slots))
+  | d' == 0   =  (name, (UpdateMarkers n : instructions, slots))  {- exercise 4.3 -}
+  | otherwise =  (name, (UpdateMarkers n : Take d' n : instructions, slots))
   where
     n = length args
     instructions = fillSlotsSC slots insts0  {- apply slots depending on lexical-scope of Super-Combinator -}
@@ -617,6 +618,22 @@ step state@TimState{..} = case instr_ of
   PushMarker x : instr'    -> applyToStats statIncExtime
                               state { instr_ = instr', stack_ = stkEmpty stack_ , dump_ = (fptr_, x, stack_) : dump_ }
 
+  UpdateMarkers n : instr'
+    | m >= n               -> applyToStats statIncExtime
+                              state { instr_ = instr' }
+    | otherwise  ->  case dump_ of
+        []                 -> error "step:UpdateMarkers: TimDump is null"
+        (fu, x, s):dump'   -> applyToStats statIncExtime
+                              state { islots_ = islots', stack_ = stack', dump_ = dump', heap_ = heap' }
+          where cs = list stack_
+                args = [m, m-1 .. 1]
+                islots' = defSlot args <> islots_
+                i' = ([Push (Arg ax) | ax <- args] ++ UpdateMarkers n : instr', islots')
+                (heap1, f') = fAlloc heap_ cs
+                heap' = fUpdate heap1 fu x (i', f')
+                stack' = stkOfList (cs ++ list s) (maxDepth stack_)
+    where m = depth stack_
+
   []                       -> error $ "instructions is []"
 
 amToClosure :: TimAMode -> FramePtr -> TimHeap -> CodeStore -> Closure
@@ -922,6 +939,7 @@ showInstruction  d (Enter x) = iStr "Enter " <> showArg d x
 showInstruction  d (Push x)  = iStr "Push "  <> showArg d x
 showInstruction _d (PushV x) = iStr "PushV " <> iStr (show x)
 showInstruction _d (PushMarker i) = iStr "PushMarker " <> iStr (show i)
+showInstruction _d (UpdateMarkers n) = iStr "UpdateMarkers " <> iStr (show n)
 showInstruction _d  Return   = iStr "Return"
 showInstruction _d (Op op)   = iStr $ "Op " <> show op
 showInstruction  d (Cond t e) = iStr "Cond"                       <> iNewline <>
