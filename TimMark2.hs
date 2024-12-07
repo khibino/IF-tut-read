@@ -456,6 +456,7 @@ step state@TimState{..} = case instr_ of
               Le   ->  comp2 (<=)
               Eq   ->  comp2 (==)
               Ne   ->  comp2 (/=)
+              {- exercise 4.8 -}
 
             comp2 cop x y
               | x `cop` y  =  0  {- 0   is    True -}
@@ -859,6 +860,13 @@ test_fib10 = "fib n = if (n < 2) 1 (fib (n-1) + fib (n-2)); main = fib 10"
 
 test_compose2 :: String
 test_compose2 = "compose2 f g x = f (g x x) ; main = compose2 I K 3"
+
+{- exercise 4.9
+   * example code - multipleof3
+     * condition expression `multipleof3 5` will be executed in VStack
+ -}
+test_multipleof3 :: String
+test_multipleof3 = "multipleof3 x = ((x / 3) * 3) == x ; f y = if (multipleof3 y) 0 1 ; main = f 5"
 
 ---
 
