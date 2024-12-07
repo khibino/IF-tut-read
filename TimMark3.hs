@@ -296,6 +296,17 @@ compileSC env (name, args, body)
     (d', (instructions, slots)) = compileR body new_env n
     new_env = zip args (map Arg [1..]) ++ env
 
+{- per SC replacing slots of AMode, corresponding to lexical-closure -}
+fillSlotsSC :: Slots -> [Instruction] -> [Instruction]
+fillSlotsSC slots = map instr
+  where
+    instr (Move n am) = Move n (amode am)
+    instr (Push am)   = Push   (amode am)
+    instr (Enter am)  = Enter  (amode am)
+    instr  i          = i
+    amode (Code (is, _slots)) = Code (map instr is, slots)
+    amode  am                 = am
+
 compileR :: CoreExpr -> TimCompilerEnv -> FrameIx -> (FrameIx, CCode)
 compileR e@(EAp (EVar "negate") _)    env d = compileB e env (d, ([Return], mempty))
 compileR e@(EAp (EAp (EVar opn) _) _) env d
