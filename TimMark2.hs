@@ -308,8 +308,11 @@ mapAR f = mapCode (\instA -> [f instA])
 
 compileA :: CoreExpr -> TimCompilerEnv -> (TimAMode, Slots)
 compileA (EVar v)  env = case aLookup env v (error $ "Unknown variable " ++ v) of
-  a@(Arg n) -> (a, defSlot [n])
-  a         -> (a, mempty)
+  a@(Arg n)            -> (a, defSlot [n])
+  {- extract slots for local lexical-closure.
+     `Code :: AMode` is not global. global closure (super-combinator) is `Label :: AMode`. -}
+  a@(Code (_, slots))  -> (a, slots)
+  a                    -> (a, mempty)
 compileA (ENum n) _env = (IntConst n, mempty)
 compileA  e        env = (Code ccode, slots)
   where ccode@(_, slots) = compileR e env
@@ -889,6 +892,6 @@ checkList =
   , (4, "main = if 1 3 4")
   , (3, "f = if 0; main = f 3 4")  {- higher-order if -}
   , (6, "factorial n = if n 1 (n * factorial (n-1)); main = factorial 3")
-  , (1, "f x y = x == y ; main = f 2 3")  {- TODO: TimMark2 with GC -} {- False is 1 -}
-  , (6, "f x y = x * y ; main = f 2 3")  {- TODO: TimMark2 with GC -}
+  , (1, "f x y = x == y ; main = f 2 3")  {- DONE: TimMark2 with GC -} {- False is 1 -}
+  , (6, "f x y = x * y ; main = f 2 3")  {- DONE: TimMark2 with GC -}
   ]
