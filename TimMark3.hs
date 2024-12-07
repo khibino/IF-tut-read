@@ -293,7 +293,8 @@ compileSC env (name, args, body)
   | otherwise =  (name, (Take d' n : instructions, slots))
   where
     n = length args
-    (d', (instructions, slots)) = compileR body new_env n
+    instructions = fillSlotsSC slots insts0  {- apply slots depending on lexical-scope of Super-Combinator -}
+    (d', (insts0, slots)) = compileR body new_env n
     new_env = zip args (map Arg [1..]) ++ env
 
 {- per SC replacing slots of AMode, corresponding to lexical-closure -}
@@ -320,9 +321,10 @@ compileR   (EAp (EAp (EAp (EVar "if") e) et) ee)  {- exercise 4.7 -}
 compileR (ELet rec_ defns body)      env d = (d', (moves ++ is, gcslots))
   where
     gcslots = Set.unions (slotR : slots)
-    {- TODO: about ams.
+    {- DONE: about ams.
        local closure は super combinator のフレームを参照するので、
        残すスロット集合は super combinator に合わせる必要がある.
+       Super-Combinator 用にマージされたスロットが、compileSC で上書きされる.
      -}
     moves = zipWith (\k am -> Move (d + k) am) [1..n] ams
     (d', (is, slotR)) = compileR body env' dn
@@ -998,6 +1000,6 @@ checkList =
   , (1, "f x y = x == y ; main = f 2 3")  {- DONE: TimMark2 with GC -} {- False is 1 -}
   , (6, "f x y = x * y ; main = f 2 3")  {- DONE: TimMark2 with GC -}
   , (5, "g p y = p + y; f x y = g (x + y) y; main = f 1 2")
-  , (3, "f x y = letrec p = x + y in p ; main = f 1 2" ) {- TODO: TimMark3 with GC -}
-  , (5, "f x y = let p = x + y in p + y; main = f 1 2") {- TODO: TimMark3 with GC -}
+  , (3, "f x y = letrec p = x + y in p ; main = f 1 2" ) {- DONE: TimMark3 with GC -}
+  , (5, "f x y = let p = x + y in p + y; main = f 1 2") {- DONE: TimMark3 with GC -}
   ]
