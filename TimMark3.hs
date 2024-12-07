@@ -296,7 +296,8 @@ compileSC env (name, args, body)
   | otherwise =  (name, (Take d' n : instructions, slots))
   where
     n = length args
-    (d', (instructions, slots)) = compileR body new_env n
+    instructions = fillSlotsSC slots insts0
+    (d', (insts0, slots)) = compileR body new_env n
     new_env = zip args (map Arg [1..]) ++ env
 
 fillSlotsSC :: Slots -> [Instruction] -> [Instruction]
