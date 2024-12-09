@@ -317,7 +317,7 @@ compileA (ENum n) _env = (IntConst n, mempty)
 compileA  e        env = (Code ccode, slots)
   where ccode@(_, slots) = compileR e env
 
-{-exercise 4.6 -}
+{- exercise 4.6 -}
 {-
 "factorial n = if n 1 (n * factorial (n-1)); main = factorial 3"
   without vstack        :  204 steps
