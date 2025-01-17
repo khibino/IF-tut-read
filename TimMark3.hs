@@ -282,6 +282,9 @@ compiledPrimitives = [ ("+", op2code Add)
 ---
 
 type TimCompilerEnv = [(Name, TimAMode)]
+
+{- exercise 4.11
+   FrameIx things and let impl finalize Take and Move instruction -}
 type FrameIx = Int
 
 compileSC :: TimCompilerEnv -> CoreScDefn -> (Name, CCode)
