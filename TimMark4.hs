@@ -617,33 +617,29 @@ intCode = ([PushV FramePtr, Return], mempty)
 ---
 
 gc :: TimState -> TimState
-gc s@TimState{..} = s { fptr_ = fptr1, stack_ = stack1, heap_ = dheap, gcDump_ = gcDump }
+gc s@TimState{..} = s { fptr_ = fptr1, stack_ = stack1, dump_ = dump1, heap_ = dheap, gcDump_ = gcDump }
   where
-    dheap = uncurry scavengeHeap heaps2
+    dheap = uncurry scavengeHeap heaps3
 
-    -- (heaps2, fptr1) = evacuateFramePtr heaps1 fptr_  {- Not pruned -}
-    (heaps2, fptr1) = evacuateFramePtrPruned prune heaps1 fptr_
+    (heaps3, fptr1) = evacuateFramePtrPruned prune heaps2 fptr_
     prune :: [Closure] -> [Closure]
     prune cs = zipWith pruneBySlot [1..] cs
     pruneBySlot i c
       | i `Set.member` islots_   = c
       | otherwise                = (mempty, FrameNull)
 
-    stack1 :: TimStack
-    stack1 = stkOfList clist1 (maxDepth stack_)
+    (heaps2, stack1) = evacuateStack heaps1 stack_
+    (heaps1, dump1) = mapAccumL evacuateDumpElem heaps0 dump_
 
-    heaps1 :: (TimHeap, TimHeap)
-    (heaps1, clist1) = mapAccumL evacuateClosure heaps0 clist0
-
-    clist0 = list stack_
     heaps0 = (heap_, hInitial)
 
     -----
     gcDump =
       iStr "GC Dump:" <> iNewline <> iStr "  " <>
       iIndent (title "Before GC"                 <> showHeap' "       " heap_   <>
-               title "After Evacuate Stack"      <> showHeaps           heaps1  <>
-               title "After Evacuate Frame-Ptr"  <> showHeaps           heaps2  <>
+               title "After Evacuate Dump"       <> showHeaps           heaps1  <>
+               title "After Evacuate Stack"      <> showHeaps           heaps2  <>
+               title "After Evacuate Frame-Ptr"  <> showHeaps           heaps3  <>
                title "After GC (Scavenge)"       <> showHeap' "       " dheap)
     title tag = iStr tag <> iStr ":" <> iNewline
     showHeap' tag h = iStr tag <> showHeap h <> iNewline
@@ -674,6 +670,16 @@ evacuateAddrPruned prune heaps0@(srcH0, dstH0) srcA  = case frame0 of
       evacuateFramePtr' hs0 fptr = fst $ evacuateFramePtr hs0 fptr
   where
     frame0 = hLookup srcH0 srcA
+
+evacuateDumpElem :: (TimHeap, TimHeap) -> (FramePtr, Int, TimStack) -> ((TimHeap, TimHeap), (FramePtr, Int, TimStack))
+evacuateDumpElem heaps0 (fptr0, x, stack0) = (heaps2, (fptr1, x, stack1))
+  where (heaps2, stack1) = evacuateStack heaps1 stack0
+        (heaps1, fptr1) = evacuateFramePtr heaps0 fptr0
+
+evacuateStack :: (TimHeap, TimHeap) -> TimStack -> ((TimHeap, TimHeap), TimStack)
+evacuateStack heaps0 stack = (heaps1, stkOfList clist1 (maxDepth stack))
+  where (heaps1, clist1) = mapAccumL evacuateClosure heaps0 clist0
+        clist0 = list stack
 
 evacuateClosure :: (TimHeap, TimHeap) -> Closure -> ((TimHeap, TimHeap), Closure)
 evacuateClosure heaps0 (is, fptr0) = (heaps1, (is, fptr1))
