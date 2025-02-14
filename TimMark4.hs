@@ -1076,6 +1076,10 @@ ex_4_19 = "y = let x = 3 in x + x ; main = y"
  -}
 ex_4_20 = "f x = x + x ; main = f (1 + 2)"
 
+{- exercise 4.21 -}
+ex_4_21 = "pair x y f = f x y ; fst p = p K ; snd p = p K1 ; main = let w = pair 2 3 in (fst w) * (snd w)"
+ex_4_21_b = "pair x y f = f x y ; fst p = p K ; snd p = p K1 ; main = let w = if (2*3 > 4) (pair 2 3) (pair 3 2) in (fst w) * (snd w)"
+
 ---
 
 checks0 :: (Bool -> Int -> String -> Either String String) -> [(Int, String)] -> IO ()
