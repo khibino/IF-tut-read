@@ -1031,6 +1031,8 @@ example code
  -}
 ex_4_18 = "f x = let y = x + x + x in let z = y + y + y in z + z + z  ; main = f 1"
 
+ex_4_19 = "y = let x = 3 in x + x ; main = y"
+
 ---
 
 checks0 :: (Bool -> Int -> String -> Either String String) -> [(Int, String)] -> IO ()
