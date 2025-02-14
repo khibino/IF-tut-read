@@ -308,7 +308,7 @@ compileSC env (name, args, body)
     n = length args
     instructions = fillSlotsSC slots insts0  {- apply slots depending on lexical-scope of Super-Combinator -}
     (d', (insts0, slots)) = compileR body new_env n
-    new_env = zip args (map mkUpdIndMode [1..]) ++ env
+    new_env = zip args (map Arg [1..]) ++ env
 
 {- per SC replacing slots of AMode, corresponding to lexical-closure -}
 fillSlotsSC :: Slots -> [Instruction] -> [Instruction]
