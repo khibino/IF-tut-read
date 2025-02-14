@@ -358,7 +358,7 @@ compileR e@(ENum {})                  env d = compileB e env (d, ([Return], memp
 compileR (EAp e1 e2)  env  d = case [() | ENum {} <- [e2]] ++ [() | EVar {} <- [e2]] of
   _:_  -> (d1, mapAR Push am <> is)
     where
-      (_, am) = compileA e2 env d
+      am = compileA e2 env
       (d1, is) = compileR e1 env d
   []   -> (d2, callU <> is)
     where
@@ -366,9 +366,9 @@ compileR (EAp e1 e2)  env  d = case [() | ENum {} <- [e2]] ++ [() | EVar {} <- [
       ssu = defSlot [d + 1]
       (d1, (am', ss0)) = compileU e2 (d + 1) env (d + 1)
       (d2, is) = compileR e1 env d1
-compileR (EVar v)     env  d = (d', mkEnter am)  {- exercise 4.17 -}
+compileR (EVar v)     env  d = (d, mkEnter am)  {- exercise 4.17 -}
   where
-    (d', am) = compileA (EVar v) env d
+    am = compileA (EVar v) env
 compileR  e          _env _d = error $ "compileR: cannot for " ++ show e
 
 mkIndMode :: Int -> TimAMode
@@ -390,15 +390,15 @@ compileU (ENum n) _ _   d  = (d , (IntConst n, mempty))
 compileU  e       u env d  = (d', (Code (PushMarker u : is, slots), slots))
   where (d', (is, slots)) = compileR e env d
 
-compileA :: CoreExpr -> TimCompilerEnv -> FrameIx -> (FrameIx, (TimAMode, Slots))
-compileA (EVar v)  env d = case aLookup env v (error $ "Unknown variable " ++ v) of
-  a@(Arg n)            -> (d, (a, defSlot [n]))
+compileA :: CoreExpr -> TimCompilerEnv -> (TimAMode, Slots)
+compileA (EVar v)  env = case aLookup env v (error $ "Unknown variable " ++ v) of
+  a@(Arg n)            -> (a, defSlot [n])
   {- extract slots for local lexical-closure.
      `Code :: AMode` is not global. global-closure (super-combinator) is `Label :: AMode`. -}
-  a@(Code (_, slots))  -> (d, (a, slots))
-  a                    -> (d, (a, mempty))
-compileA (ENum n) _env d = (d, (IntConst n, mempty))
-compileA  e        _   _ = error $ "compileA: connot for " ++ show e
+  a@(Code (_, slots))  -> (a, slots)
+  a                    -> (a, mempty)
+compileA (ENum n) _env = (IntConst n, mempty)
+compileA  e        _   = error $ "compileA: connot for " ++ show e
 
 mapFCode :: (a -> b) -> (FrameIx, (a, Slots)) -> (FrameIx, (b, Slots))
 mapFCode f (ix, (x, s)) = (ix, (f x, s))
