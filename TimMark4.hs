@@ -343,16 +343,16 @@ compileR (ELet rec_ defns body)      env d = (d', (moves ++ is, gcslots))
     (d', (is, slotR)) = compileR body env' dn
     env' = envrec
     (ams, slots) = unzip ps
-    (dn, ps) = mapAccumL astep (d + n) es
+    (dn, ps) = mapAccumL ustep (d + n) (zip [d + 1..] es)
+    ustep d_ (u, e) = compileU e u envlet d_
     (xs, es) = unzip defns
-    astep d_ e = compileA e envlet d_
     envlet
       | rec_       = envrec
       | otherwise  = env
     {- exercise 4.14
        implement letrec env by applying mkIndMode -}
     {- intro mkUpdIndMode, section 4.5.2 -}
-    envrec         = zipWith (\x k -> (x, mkUpdIndMode (d + k))) xs [1..n] ++ env
+    envrec         = zipWith (\x k -> (x, mkIndMode (d + k))) xs [1..n] ++ env
     n = length defns
 compileR e@(ENum {})                  env d = compileB e env (d, ([Return], mempty))
 compileR (EAp e1 e2)  env  d = (d2, mapAR Push am <> is)
@@ -377,6 +377,10 @@ mkEnter otherAm             = mapAR Enter otherAm
 
 mapAR :: (TimAMode -> Instruction) -> (TimAMode, Slots) -> ([Instruction], Slots)
 mapAR f = mapCode (\instA -> [f instA])
+
+compileU :: CoreExpr -> FrameIx -> TimCompilerEnv -> FrameIx -> (FrameIx, (TimAMode, Slots))
+compileU  e    u   env d = (d', (Code (PushMarker u : is, slots), slots))
+  where (d', (is, slots)) = compileR e env d
 
 compileA :: CoreExpr -> TimCompilerEnv -> FrameIx -> (FrameIx, (TimAMode, Slots))
 compileA (EVar v)  env d = case aLookup env v (error $ "Unknown variable " ++ v) of
@@ -1013,6 +1017,18 @@ ex_4_16 = "f x = x + x ; main = f (1+2)"
 {- exercise 4.17 -}
 ex_4_17 = "compose f g x = f (g x)"
 
+{- exercise 4.18
+example code
+
+  f x = let y = x + x + x in let z = y + y + y in z + z + z  ; main = f 1
+
+- compileU not applied
+  - Steps taken = 65
+  - Execution time = 64
+- compileU applied
+  - Steps taken = 57
+  - Execution time = 56
+ -}
 ex_4_18 = "f x = let y = x + x + x in let z = y + y + y in z + z + z  ; main = f 1"
 
 ---
