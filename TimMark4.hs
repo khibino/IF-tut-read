@@ -379,7 +379,8 @@ mapAR :: (TimAMode -> Instruction) -> (TimAMode, Slots) -> ([Instruction], Slots
 mapAR f = mapCode (\instA -> [f instA])
 
 compileU :: CoreExpr -> FrameIx -> TimCompilerEnv -> FrameIx -> (FrameIx, (TimAMode, Slots))
-compileU  e    u   env d = (d', (Code (PushMarker u : is, slots), slots))
+compileU (ENum n) _ _   d  = (d , (IntConst n, mempty))
+compileU  e       u env d  = (d', (Code (PushMarker u : is, slots), slots))
   where (d', (is, slots)) = compileR e env d
 
 compileA :: CoreExpr -> TimCompilerEnv -> FrameIx -> (FrameIx, (TimAMode, Slots))
@@ -1031,6 +1032,14 @@ example code
  -}
 ex_4_18 = "f x = let y = x + x + x in let z = y + y + y in z + z + z  ; main = f 1"
 
+{- exercise 4.19
+- CompileU, IntConst result not applied
+  - Steps taken = 16
+  - Execution time = 15
+- CompileU, IntConst result applied
+  - Steps taken = 14
+  - Execution time = 13
+ -}
 ex_4_19 = "y = let x = 3 in x + x ; main = y"
 
 ---
