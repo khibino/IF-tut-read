@@ -1013,6 +1013,8 @@ ex_4_16 = "f x = x + x ; main = f (1+2)"
 {- exercise 4.17 -}
 ex_4_17 = "compose f g x = f (g x)"
 
+ex_4_18 = "f x = let y = x + x + x in let z = y + y + y in z + z + z  ; main = f 1"
+
 ---
 
 checks0 :: (Bool -> Int -> String -> Either String String) -> [(Int, String)] -> IO ()
