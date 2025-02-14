@@ -355,10 +355,17 @@ compileR (ELet rec_ defns body)      env d = (d', (moves ++ is, gcslots))
     envrec         = zipWith (\x k -> (x, mkIndMode (d + k))) xs [1..n] ++ env
     n = length defns
 compileR e@(ENum {})                  env d = compileB e env (d, ([Return], mempty))
-compileR (EAp e1 e2)  env  d = (d2, mapAR Push am <> is)
-  where
-    (d1, am) = compileA e2 env d
-    (d2, is) = compileR e1 env d1
+compileR (EAp e1 e2)  env  d = case [() | ENum {} <- [e2]] ++ [() | EVar {} <- [e2]] of
+  _:_  -> (d1, mapAR Push am <> is)
+    where
+      (_, am) = compileA e2 env d
+      (d1, is) = compileR e1 env d
+  []   -> (d2, callU <> is)
+    where
+      callU = ([Move (d + 1) am', Push (Code ([Enter (Arg (d + 1))], ssu))], ssu <> ss0)
+      ssu = defSlot [d + 1]
+      (d1, (am', ss0)) = compileU e2 (d + 1) env (d + 1)
+      (d2, is) = compileR e1 env d1
 compileR (EVar v)     env  d = (d', mkEnter am)  {- exercise 4.17 -}
   where
     (d', am) = compileA (EVar v) env d
@@ -391,8 +398,7 @@ compileA (EVar v)  env d = case aLookup env v (error $ "Unknown variable " ++ v)
   a@(Code (_, slots))  -> (d, (a, slots))
   a                    -> (d, (a, mempty))
 compileA (ENum n) _env d = (d, (IntConst n, mempty))
-compileA  e        env d = (d', (Code ccode, slots))
-  where (d', ccode@(_, slots)) = compileR e env d
+compileA  e        _   _ = error $ "compileA: connot for " ++ show e
 
 mapFCode :: (a -> b) -> (FrameIx, (a, Slots)) -> (FrameIx, (b, Slots))
 mapFCode f (ix, (x, s)) = (ix, (f x, s))
@@ -1042,6 +1048,14 @@ ex_4_18 = "f x = let y = x + x + x in let z = y + y + y in z + z + z  ; main = f
  -}
 ex_4_19 = "y = let x = 3 in x + x ; main = y"
 
+{- exercise 4.20
+- compileR EAp, compileU not applied
+  - Steps taken = 20
+  - Execution time = 19
+- compileR EAp, compileU applied
+  - Steps taken = 22
+  - Execution time = 20
+ -}
 ex_4_20 = "f x = x + x ; main = f (1 + 2)"
 
 ---
