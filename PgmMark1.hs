@@ -44,6 +44,9 @@ infixr 5 <:>
 
 ---
 
+{- exercise 5.1 -}
+type PgmState = (PgmGlobalState, [PgmLocalState])
+
 type GmState = (PgmGlobalState, PgmLocalState)
 
 type PgmGlobalState =
@@ -135,7 +138,11 @@ putClock clock' (gl, (i, stack, dump, vstack, _clock)) =
 
 type GmOutput = [Char]
 
-getOutput :: GmState -> GmOutput
+pgmGetOutput :: PgmState -> GmOutput
+pgmGetOutput = getOutput
+
+{- getOutput :: GmState -> GmOutput -}
+getOutput :: (PgmGlobalState, a) -> GmOutput
 getOutput ((out, _heap, _globals, _sparks, _stats), _lo) = out
 
 putOutput :: GmOutput -> GmState -> GmState
@@ -144,7 +151,11 @@ putOutput out' ((_out, heap, globals, sparks, stats), lo) =
 
 type GmHeap = Heap Node
 
-getHeap :: GmState -> GmHeap
+pgmGetHeap :: PgmState -> GmHeap
+pgmGetHeap = getHeap
+
+{- getHeap :: GmState -> GmHeap -}
+getHeap :: (PgmGlobalState, a) -> GmHeap
 getHeap ((_out, heap, _globals, _sparks, _stats), _lo) = heap
 
 putHeap :: GmHeap -> GmState -> GmState
@@ -167,7 +178,11 @@ instance Eq Node
 
 type GmGlobals = Assoc Name Addr
 
-getGlobals :: GmState -> GmGlobals
+pgmGetGlobals :: PgmState -> GmGlobals
+pgmGetGlobals = getGlobals
+
+{- getGlobals :: GmState -> GmGlobals -}
+getGlobals :: (PgmGlobalState, a) -> GmGlobals
 getGlobals ((_out, _heap, globals, _sparks, _stats), _lo) = globals
 
 putGlobals :: GmGlobals -> GmState -> GmState
@@ -176,7 +191,11 @@ putGlobals globals' ((out, heap, _globals, sparks, stats), lo) =
 
 type GmSparks = [Addr]
 
-getSparks :: GmState -> GmSparks
+pgmGetSparks :: PgmState -> GmSparks
+pgmGetSparks = getSparks
+
+{- getSparks :: GmState -> GmSparks -}
+getSparks :: (PgmGlobalState, a) -> GmSparks
 getSparks ((_out, _heap, _globals, sparks, _stats), _lo) = sparks
 
 putSparks :: GmSparks -> GmState -> GmState
@@ -206,7 +225,11 @@ statIncSteps s = s
 statGetSteps :: GmStats -> Int
 statGetSteps _ = -1
 
-getStats :: GmState -> GmStats
+pgmGetStats :: PgmState -> GmStats
+pgmGetStats = getStats
+
+{- getStats :: GmState -> GmStats -}
+getStats :: (PgmGlobalState, a) -> GmStats
 getStats ((_out, _heap, _globals, _sparks, stats), _lo) = stats
 
 putStats :: GmStats -> GmState -> GmState
