@@ -1,4 +1,8 @@
 {-# LANGUAGE NPlusKPatterns #-}
+{- TODO:
+   * check G-machine Mark6 is done?
+   * complete G-machine Mark7
+ -}
 module GMachineMark7 where
 
 import Language
