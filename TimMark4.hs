@@ -1,4 +1,9 @@
 {-# LANGUAGE RecordWildCards #-}
+{- TODO
+   * complete TIM Mark4
+   * do TIM Mark5
+   * do TIM Mark6
+ -}
 
 module TimMark4 where
 
