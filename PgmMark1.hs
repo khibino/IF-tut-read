@@ -548,10 +548,10 @@ builtInDyadic =
 
 -- Compiling a program
 
-compile :: CoreProgram -> GmState
+compile :: CoreProgram -> PgmState
 compile program =
-  undefined
-  -- ([], initialCode, Stack [] 0 0, Stack [] 0 0, [], heap, globals, statInitial)
+  (([], heap, globals, [], []),
+   [(initialCode, Stack [] 0 0, Stack [] 0 0, [], 0)])
   where (heap, globals) = buildInitialHeap program
 
 buildInitialHeap :: CoreProgram -> (GmHeap, GmGlobals)
@@ -726,19 +726,19 @@ skk3 = [ ("main", [], ap3 (EVar "S") (EVar "K") (EVar "K") (ENum 3)) ]
   where ap2 f x y = EAp (EAp f x) y
         ap3 f x y z = EAp (ap2 f x y) z
 
-test1 :: GmState
+test1 :: PgmState
 test1 = compile (skk3 ++ preludeDefs)
 
 ---
 
 run :: String -> String
-run = showResults_ . eval_ . compile . parse
+run = showResults . eval . compile . parse
 
-evalList :: GmState -> [GmState]
+evalList :: PgmState -> [PgmState]
 evalList = undefined
 
-compileList :: CoreProgram -> GmState
-compileList program = undefined
+compileList :: CoreProgram -> PgmState
+compileList _program = undefined
 
 extraPreludeDefs :: CoreProgram
 extraPreludeDefs =
@@ -772,9 +772,6 @@ extraPreludeDefs =
   , ("printCons",["h","t"],EAp (EAp (EVar "print") (EVar "h")) (EAp (EVar "printList") (EVar "t")))
    -}
   ]
-
-showResults_ :: [GmState] -> String
-showResults_ = undefined
 
 showResults :: [PgmState] -> String
 showResults states =
@@ -1140,7 +1137,7 @@ bug_mark6_unwind0_A = "main = I I 3"
 bug_mark6_unwind0_B = testB32nfib
 
 test_ :: Bool -> String -> IO ()
-test_ nestedDebug = putStrLn . showResults_ . eval_ . compile . parse
+test_ _nestedDebug = putStrLn . showResults . eval . compile . parse
 -- test_ nestedDebug = putStrLn . showResults . eval . setDebug . compile . parse
 --   where setDebug = applyToStats (tiStatSetDebugNested nestedDebug)
 
@@ -1151,7 +1148,7 @@ qtest :: String -> IO ()
 qtest = test_ False
 
 testList :: String -> IO ()
-testList = putStrLn . showResults_ . evalList . compileList . parse
+testList = putStrLn . showResults . evalList . compileList . parse
 
 check :: Node -> String -> Either String String
 check expect prog
@@ -1159,7 +1156,7 @@ check expect prog
   | lastv == expect         =  Right . unlines $ showProg "pass: " ++ [show lastv]
   | otherwise               =  Left  . unlines $ ("expect " ++ show expect) : showProg "wrong: "
   where
-    states = take limit . eval_ . compile . parse $ prog
+    states = take limit . eval . compile . parse $ prog
     limit = 1000000
     (   _o, _i, lastStack, _d, _vs, lHeap, _, _) = undefined -- last states
     (a, _) = stkPop lastStack
