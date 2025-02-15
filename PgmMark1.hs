@@ -6,9 +6,11 @@ import Utils
 
 import Data.List
 
+import GHC.Stack (HasCallStack)
 import Control.Monad (when)
 import Data.Either (isLeft)
 
+---
 
 data Stack a =
   Stack
@@ -19,15 +21,21 @@ data Stack a =
   deriving Show
 
 stkOfList :: [a] -> Int -> Stack a
-stkOfList xs md = Stack { list = xs, depth = length xs, maxDepth = md }
+stkOfList xs md = Stack { list = xs, depth = d, maxDepth = d `max` md }
+  where d = length xs
 
 stkPush :: a -> Stack a -> Stack a
 stkPush x Stack { list = xs, depth = d, maxDepth = maxd } =
   Stack { list = x:xs, depth = d+1, maxDepth = max (d + 1) maxd }
 
-stkPop :: Stack a -> (a, Stack a)
-stkPop s@Stack { list = xs, depth = d } =
-  (head xs, s { list = tail xs, depth = d - 1})
+stkPopCases :: Stack a -> b -> (a -> Stack a -> b) -> b
+stkPopCases s@Stack{list = xxs, depth = d} nil cons = case xxs of
+  []    -> nil
+  x:xs  -> cons x s{ list = xs, depth = d - 1}
+
+stkPop :: HasCallStack => Stack a -> (a, Stack a)
+stkPop s = stkPopCases s nil (,)
+  where nil = error "stkPop: empty stack!"
 
 stkPopN :: Int -> Stack a -> ([a], Stack a)
 stkPopN n s@(Stack { list = xs, depth = d }) = (hd, s { list = tl, depth = max (d - n) 0 })
@@ -39,6 +47,9 @@ discard n s = snd $ stkPopN n s
 
 (<:>) :: a -> Stack a -> Stack a
 (<:>) = stkPush
+
+stkEmpty :: Stack a -> Stack a
+stkEmpty Stack{maxDepth = maxd} = Stack {list = [], depth = 0, maxDepth = maxd}
 
 infixr 5 <:>
 
