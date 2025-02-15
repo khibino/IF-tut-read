@@ -255,24 +255,51 @@ putStats stats' ((out, heap, globals, sparks, _stats), lo) =
 
 -- The evaluator
 
-eval :: GmState -> [GmState]
+eval :: PgmState -> [PgmState]
 eval state = state : restStates
   where
     restStates | gmFinal state    =  []
                | otherwise        =  eval nextState
-    nextState = doAdmin (step state)
+    nextState = doAdmin (steps state)
 
-doAdmin :: GmState -> GmState
-doAdmin s = putStats (statIncSteps (getStats s)) s
+{-# DEPRECATED eval_ "old signature eval, not supported" #-}
+eval_ :: GmState -> [GmState]
+eval_ = undefined
 
-gmFinal :: GmState -> Bool
-gmFinal s = null $ getCode s
+doAdmin :: PgmState -> PgmState
+doAdmin ((out, heap, globals, sparks, stats), local) =
+  ((out, heap, globals, sparks, stats'), local')
+  where
+    (local', stats') = foldr filter_ ([], stats) local
+    filter_ lo@(i, _stack, _dump, _vstack, clock) (local_, stats_)
+      | null i     = (local_, clock : stats_)
+      | otherwise  = (lo : local_, stats_)
+
+gmFinal :: PgmState -> Bool
+gmFinal s = null (snd s) && null (pgmGetSparks s)
 
 ---
 
-step :: GmState -> GmState
-step state = dispatch i (putCode is state)
-  where (i:is) = getCode state
+steps :: PgmState -> PgmState
+steps state =
+  mapAccumL step global' local'
+  where
+    ((out, heap, globals, sparks, stats), local) = state
+    newtasks  = [makeTask a | a <- sparks]
+    global'   = (out, heap, globals, [], stats)
+    local'    = map tick (local ++ newtasks)
+
+step :: PgmGlobalState -> PgmLocalState -> GmState
+step global local = dispatch i (putCode is state)
+  where
+    (i:is) = getCode state
+    state = (global, local)
+
+makeTask :: Addr -> PgmLocalState
+makeTask addr = ([Unwind], stkOfList [addr] 0, stkOfList [] 0, [], 0)
+
+tick :: PgmLocalState -> PgmLocalState
+tick (i, stack, dump, vstack, clock) = (i, stack, dump, vstack, clock + 1)
 
 dispatch :: Instruction -> GmState -> GmState
 dispatch = d
@@ -704,7 +731,7 @@ test1 = compile (skk3 ++ preludeDefs)
 ---
 
 run :: String -> String
-run = showResults . eval . compile . parse
+run = showResults_ . eval_ . compile . parse
 
 evalList :: GmState -> [GmState]
 evalList = undefined
@@ -745,8 +772,11 @@ extraPreludeDefs =
    -}
   ]
 
-showResults :: [GmState] -> String
-showResults states =
+showResults :: [PgmState] -> String
+showResults = undefined
+
+showResults_ :: [GmState] -> String
+showResults_ states =
   concat $
   map iDisplay $
   [ iNewline
@@ -1102,7 +1132,7 @@ bug_mark6_unwind0_A = "main = I I 3"
 bug_mark6_unwind0_B = testB32nfib
 
 test_ :: Bool -> String -> IO ()
-test_ nestedDebug = putStrLn . showResults . eval . compile . parse
+test_ nestedDebug = putStrLn . showResults_ . eval_ . compile . parse
 -- test_ nestedDebug = putStrLn . showResults . eval . setDebug . compile . parse
 --   where setDebug = applyToStats (tiStatSetDebugNested nestedDebug)
 
@@ -1113,7 +1143,7 @@ qtest :: String -> IO ()
 qtest = test_ False
 
 testList :: String -> IO ()
-testList = putStrLn . showResults . evalList . compileList . parse
+testList = putStrLn . showResults_ . evalList . compileList . parse
 
 check :: Node -> String -> Either String String
 check expect prog
@@ -1121,7 +1151,7 @@ check expect prog
   | lastv == expect         =  Right . unlines $ showProg "pass: " ++ [show lastv]
   | otherwise               =  Left  . unlines $ ("expect " ++ show expect) : showProg "wrong: "
   where
-    states = take limit . eval . compile . parse $ prog
+    states = take limit . eval_ . compile . parse $ prog
     limit = 1000000
     (   _o, _i, lastStack, _d, _vs, lHeap, _, _) = undefined -- last states
     (a, _) = stkPop lastStack
