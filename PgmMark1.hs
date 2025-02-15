@@ -1152,15 +1152,13 @@ testList = putStrLn . showResults . evalList . compileList . parse
 
 check :: Node -> String -> Either String String
 check expect prog
-  | length states == limit  =  Left  . unlines $ ("expect " ++ show expect) : showProg "too long: "
-  | lastv == expect         =  Right . unlines $ showProg "pass: " ++ [show lastv]
-  | otherwise               =  Left  . unlines $ ("expect " ++ show expect) : showProg "wrong: "
+  | length states == limit             =  Left  . unlines $ ("expect " ++ show expect) : showProg "too long: "
+  | NNum en <- expect, show en == out  =  Right . unlines $ showProg "pass: " ++ [out]
+  | otherwise                          =  Left  . unlines $ ("expect " ++ show expect) : showProg "wrong: "
   where
     states = take limit . eval . compile . parse $ prog
     limit = 1000000
-    (   _o, _i, lastStack, _d, _vs, lHeap, _, _) = undefined -- last states
-    (a, _) = stkPop lastStack
-    lastv = hLookup lHeap a :: Node
+    ((out, _heap, _globals, _sparks, _stats), _lo) = last states
 
     showProg word =
       zipWith (++)
