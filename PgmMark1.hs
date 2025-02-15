@@ -183,20 +183,28 @@ putSparks :: GmSparks -> GmState -> GmState
 putSparks sparks' ((out, heap, globals, _sparks, stats), lo) =
   ((out, heap, globals, sparks', stats), lo)
 
-data GmStats =
-  GmStats
-  { steps :: Int
-  , lastMaxHeap :: Int
+type GmStats = [Int]
+
+data GmStats_ =
+  GmStats_
+  { extimes_ :: GmStats
+  , lastMaxHeap_ :: Int
   }
 
-statInitial :: GmStats
-statInitial = GmStats { steps = 0, lastMaxHeap = 0 }
+statInitial :: GmStats_
+statInitial = GmStats_ { extimes_ = [], lastMaxHeap_ = 0 }
 
+{-# DEPRECATED lastMaxHeap "not supported" #-}
+lastMaxHeap :: GmStats -> Int
+lastMaxHeap _ = -1
+
+{-# DEPRECATED statIncSteps "not supported" #-}
 statIncSteps :: GmStats -> GmStats
-statIncSteps s = s { steps = steps s + 1 }
+statIncSteps s = s
 
+{-# DEPRECATED statGetSteps "not supported" #-}
 statGetSteps :: GmStats -> Int
-statGetSteps = steps
+statGetSteps _ = -1
 
 getStats :: GmState -> GmStats
 getStats ((_out, _heap, _globals, _sparks, stats), _lo) = stats
