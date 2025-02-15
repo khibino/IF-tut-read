@@ -44,6 +44,11 @@ infixr 5 <:>
 
 ---
 
+modify :: (s -> a) -> (a -> s -> s) -> (a -> a) -> (s -> s)
+modify get set f s = set (f (get s)) s
+
+---
+
 {- exercise 5.1 -}
 type PgmState = (PgmGlobalState, [PgmLocalState])
 
