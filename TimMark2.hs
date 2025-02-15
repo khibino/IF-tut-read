@@ -872,8 +872,8 @@ test_multipleof3 = "multipleof3 x = ((x / 3) * 3) == x ; f y = if (multipleof3 y
 
 ---
 
-checks' :: (Bool -> Int -> String -> Either String String) -> IO ()
-checks' chk = do
+checks0 :: (Bool -> Int -> String -> Either String String) -> IO ()
+checks0 chk = do
   mapM_ putResult results
   when (any isLeft $ map fst results) $ fail "some checks failed!"
   where
@@ -887,7 +887,7 @@ checks' chk = do
     putLn s = putStrLn "" *> putStr s
 
 checks :: IO ()
-checks = checks' checkV
+checks = checks0 checkV
 
 checkList :: [(Int, String)]
 checkList =
