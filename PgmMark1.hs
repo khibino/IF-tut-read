@@ -563,8 +563,9 @@ builtInDyadic =
 compile :: CoreProgram -> PgmState
 compile program =
   (([], heap, globals, [], []),
-   [(initialCode, Stack [] 0 0, Stack [] 0 0, [], 0)])
+   [initialTask addr])
   where (heap, globals) = buildInitialHeap program
+        addr            = aLookup globals "main" (error "main undefined")
 
 buildInitialHeap :: CoreProgram -> (GmHeap, GmGlobals)
 buildInitialHeap program =
@@ -579,8 +580,12 @@ allocateSc heap (name, nargs, instns) =
   (heap', (name, addr))
   where (heap', addr) = hAlloc heap (NGlobal nargs instns)
 
+initialTask :: Addr -> PgmLocalState
+initialTask addr = (initialCode, Stack [addr] 1 1, Stack [] 0 0, [], 0)
+
 initialCode :: GmCode
-initialCode = [Pushglobal "main", Eval, Print]
+initialCode = [Eval, Print]
+-- initialCode = [Pushglobal "main", Eval, Print]
 -- initialCode = [Pushglobal "main", Unwind]
 
 {- exercise 3.24
