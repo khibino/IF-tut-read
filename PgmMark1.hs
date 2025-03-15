@@ -840,7 +840,8 @@ showState s@(gl, locals) =
   [ [ iStr (show n ++ ": "), showVStack gm, iNewline
     , iIndent (showInstructions (getCode gm)), iNewline]
   | n <- [(1::Int)..] | local <- locals, let gm = (gl, local)
-  ]
+  ] ++
+  [ showSparks s ]
 
 showOutput :: PgmState -> IseqRep
 showOutput s = iConcat [iStr "Output:\"", iStr (getOutput s), iStr "\""]
@@ -1024,14 +1025,21 @@ showFWAddr addr = iStr (space (4 - length str) ++ str)
   where
     str = show addr
 
+{- exercise 5.5 -}
+showSparks :: PgmState -> IseqRep
+showSparks s = showSparks' (getSparks s)
+
+showSparks' :: GmSparks -> IseqRep
+showSparks' sparks = iStr ("Sparks: " ++ show sparks)
+
 showStats :: PgmState -> IseqRep
-showStats s =
-  iConcat
-  [ iStr "Steps taken = ", iNum (statGetSteps stats), iNewline
-  , iStr "Max heap size = ", iNum (hSize heap `max` lastMaxHeap stats)
-  , iStr " (last: ", iNum (lastMaxHeap stats), iStr ")" ]
+showStats s = iStr ("Clocks: " ++ show stats) <> iNewline
+  -- iConcat
+  -- [ iStr "Steps taken = ", iNum (statGetSteps stats), iNewline
+  -- , iStr "Max heap size = ", iNum (hSize heap `max` lastMaxHeap stats)
+  -- , iStr " (last: ", iNum (lastMaxHeap stats), iStr ")" ]
   where
-    heap = getHeap s
+    -- heap = getHeap s
     stats = getStats s
 
 -- exercise 2.4 - arranged
