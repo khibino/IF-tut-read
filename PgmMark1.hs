@@ -103,6 +103,7 @@ data Instruction
   | Alloc Int  {- exercise 3.14 -}
   | Update Int
   | Pop Int
+  | Par
   | Eval
   | Add | Sub | Mul | Div | Neg
   | Eq | Ne | Lt | Le | Gt | Ge
@@ -317,6 +318,7 @@ dispatch = d
     d  Unwind        = unwind
     -- exercise 3.9
 
+    d Par            =  par
     -- exercise 3.23
     d Eval           =  evalop
     d Add            =  arithmetic2 (+)
@@ -452,6 +454,15 @@ evalop state = putCode [Unwind] $ putStack stack' $ putDump (stkPush (i,s) d) st
         d = getDump state
         i = getCode state
 
+-----
+
+{- exercise 5.2 -}
+par :: GmState -> GmState
+par state = state'
+  where (a, s) = stkPop $ getStack state
+        state' = putSparks (a : getSparks state) (putStack s state)
+
+-----
 
 primitive1 :: (b -> GmState -> GmState)  -- boxing function
            -> (Addr -> GmState -> a)     -- unboxing fnction
@@ -839,7 +850,7 @@ showInstruction (Casejump alts) =  foldl (\s alt -> s `iAppend` iStr " " `iAppen
 showInstruction (Split n)       =  iStr "Split " `iAppend` iNum n
 showInstruction  Print          =  iStr "Print"
 showInstruction  ins
-  | ins `elem` [ Eval, Add, Sub, Mul, Div, Neg
+  | ins `elem` [ Par, Eval, Add, Sub, Mul, Div, Neg
                , Eq, Ne, Lt, Le, Gt, Ge]  =  iStr $ show ins
   | otherwise                             =  error $ "showInstruction: unknown instruction: " ++ show ins
 
