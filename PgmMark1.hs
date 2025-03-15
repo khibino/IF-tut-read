@@ -603,6 +603,12 @@ type GmCompiler = CoreExpr -> GmEnvironment -> GmCode
 compileRslide :: GmCompiler
 compileRslide e env = compileC e env ++ [Slide (length env + 1), Unwind]
 
+{- exercise 5.4
+   par e1 e2 の結果が (e1 e2) と考えたとき、
+   e1、e2 のどちらを切り離す場合も EAp e1 e2 を待つことになる.
+   最後に Mkap を行なうときに e2 のサンクは スタックの 2番目でとなっている必要があり、
+   e1 のサンクより先に e2 のサンクをスタックにプッシュする必要がある.
+ -}
 {- exercise 5.3 -}
 compileR :: GmCompiler
 compileR (EAp (EAp (EVar "par") e1) e2) args =
