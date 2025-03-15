@@ -833,11 +833,12 @@ showState :: PgmState -> IseqRep
 showState s@(gl, locals) =
   iConcat $
   [ showOutput s, iNewline
-  , showStack s, iNewline
-  , showDump s, iNewline
   ] ++
   concat
-  [ [ iStr (show n ++ ": "), showVStack gm, iNewline
+  [ [ iStr (show n ++ ":"), iNewline
+    , iIndent (showStack gm), iNewline
+    , iIndent (showDump gm), iNewline
+    , iIndent (showVStack gm), iNewline
     , iIndent (showInstructions (getCode gm)), iNewline]
   | n <- [(1::Int)..] | local <- locals, let gm = (gl, local)
   ] ++
@@ -877,20 +878,27 @@ showInstruction  ins
 iCodes :: [Instruction] -> IseqRep
 iCodes = shortShowInstructions 2
 
-showStack :: PgmState -> IseqRep
-showStack s@(gl, locals) =
-  iConcat $ concat
-  [ [ iStr (show n ++ ": Stack:[")
-    , iIndent (iInterleave iNewline $ map showStackItem (reverse $ list $ getStack gm))
-    , iStr "]"
-    ]
-  | n <- [(1::Int)..] | local <- locals, let gm = (gl, local)
-  ]
+-- showStack :: PgmState -> IseqRep
+-- showStack s@(gl, locals) =
+--   iConcat $ concat
+--   [ [ iStr (show n ++ ": Stack:[")
+--     , iIndent (iInterleave iNewline $ map showStackItem (reverse $ list $ getStack gm))
+--     , iStr "]"
+--     ]
+--   | n <- [(1::Int)..] | local <- locals, let gm = (gl, local)
+--   ]
+showStack :: GmState -> IseqRep
+showStack gm =
+   iConcat
+   [ iStr " Stack:["
+   , iIndent (iInterleave iNewline $ map showStackItem (reverse $ list $ getStack gm))
+   , iStr "]"
+   ]
   where
     showStackItem a =
       iConcat
       [ showFWAddr a,  iStr ": "
-      , showNode s a (hLookup (getHeap s) a)
+      , showNode gm a (hLookup (getHeap gm) a)
       ]
 
 {-
@@ -904,6 +912,7 @@ showStkNode nestedDebug heap n = undefined
 -- showStkNode _  _heap node = showNode node
  -}
 
+{-
 showDump :: PgmState -> IseqRep
 showDump (gl, locals) =
   iConcat $ concat
@@ -913,6 +922,15 @@ showDump (gl, locals) =
     , iStr "]"
     ]
   | n <- [(1::Int)..] | local <- locals, let gm = (gl, local)
+  ]
+ -}
+showDump :: GmState -> IseqRep
+showDump gm =
+  iConcat
+  [ iStr " Dump:["
+  , iIndent (iInterleave iNewline
+              (map showDumpItem (reverse (list $ getDump gm))))
+  , iStr "]"
   ]
 
 showDumpItem :: GmDumpItem -> IseqRep
@@ -984,7 +1002,7 @@ debugNestedAp heap = rec_ id
     showA a = "[" ++ show a ++ "]"
  -}
 
-showNode :: PgmState -> Addr -> Node -> IseqRep
+showNode :: (PgmGlobalState, a) -> Addr -> Node -> IseqRep
 showNode s a node   = case node of
   NNum n       ->  iNum n
   NGlobal n g  ->  iConcat [iStr "Global ", iStr v]
