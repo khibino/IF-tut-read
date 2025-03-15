@@ -1193,6 +1193,16 @@ bug_mark6_unwind0_A = "main = I I 3"
 
 bug_mark6_unwind0_B = testB32nfib
 
+
+{- exercise 5.6
+ex_5_6_par:
+  Clocks: [48,27]
+ex_5_6_single
+  Clocks: [72]
+ -}
+ex_5_6_par = "main = par (S K K) (S K K 3)"
+ex_5_6_single = "main = (S K K) (S K K 3)"
+
 test_ :: Bool -> String -> IO ()
 test_ _nestedDebug = putStrLn . showResults . eval . compile . parse
 -- test_ nestedDebug = putStrLn . showResults . eval . setDebug . compile . parse
