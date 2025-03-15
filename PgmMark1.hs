@@ -298,7 +298,7 @@ step global local = dispatch i (putCode is state)
     state = (global, local)
 
 makeTask :: Addr -> PgmLocalState
-makeTask addr = ([Unwind], stkOfList [addr] 0, stkOfList [] 0, [], 0)
+makeTask addr = ([Eval], stkOfList [addr] 0, stkOfList [] 0, [], 0)
 
 tick :: PgmLocalState -> PgmLocalState
 tick (i, stack, dump, vstack, clock) = (i, stack, dump, vstack, clock + 1)
