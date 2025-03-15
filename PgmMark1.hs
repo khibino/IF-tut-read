@@ -603,7 +603,12 @@ type GmCompiler = CoreExpr -> GmEnvironment -> GmCode
 compileRslide :: GmCompiler
 compileRslide e env = compileC e env ++ [Slide (length env + 1), Unwind]
 
+{- exercise 5.3 -}
 compileR :: GmCompiler
+compileR (EAp (EAp (EVar "par") e1) e2) args =
+  compileC e2 args ++ [Push 0, Par] ++
+  compileC e1 (argOffset 1 args) ++ [Mkap, Update n, Pop n, Unwind]
+  where n = length args
 compileR e env = compileE e env ++ [Update n, Pop n, Unwind]  {- Fig 3.12  p.127 -} {- exercise 3.28 -}
   where n = length env
 
@@ -625,6 +630,9 @@ compileE (ENum n) _env =  [Pushint n]  {- Fig 3.12  p.127 -}
 compileE (ELet recursive defs e) env
   | recursive  = compileLetrec compileE defs e env  {- Fig 3.12  p.127 -}
   | otherwise  = compileLet    compileE defs e env  {- Fig 3.12  p.127 -}
+compileE (EAp (EAp (EVar "par") e1) e2) args =
+  compileC e2 args ++ [Push 0, Par] ++
+  compileC e1 (argOffset 1 args) ++ [Mkap, Eval]
 compileE (EAp (EAp (EVar opn) e0) e1) env
   | Just op <- lookup opn builtInDyadic = compileE e1 env ++ compileE e0 env ++ [op]  {- Fig 3.12  p.127 -}
 compileE (EAp (EVar "negate") e) env = compileE e env ++ [Neg]  {- Fig 3.12  p.127 -}
