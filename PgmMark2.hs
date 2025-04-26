@@ -1257,6 +1257,12 @@ ex_5_7_par = "main = par I (I 3)"
 ex_5_7_single :: String
 ex_5_7_single = "main = I (I 3)"
 
+ex_5_10 :: String
+ex_5_10 = "twicep f x = par f (f x) ; main = twicep (twicep (twicep (S K K))) 3"
+
+ex_5_10_small :: String
+ex_5_10_small = "twicep f x = par f (f x) ; main = twicep (S K K) 3"
+
 test_ :: Bool -> String -> IO ()
 test_ _nestedDebug = putStrLn . showResults . eval . compile . parse
 -- test_ nestedDebug = putStrLn . showResults . eval . setDebug . compile . parse
