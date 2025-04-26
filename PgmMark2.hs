@@ -187,6 +187,8 @@ data Node
   | NInd Addr            -- Indirections
   | NConstr Int [Addr]
   | NgNode Int Int
+  | NLAp Addr Addr       -- Locked Applications
+  | NLGlobal Int GmCode  -- Locked Globals
   deriving Show
 
 instance Eq Node
@@ -1016,6 +1018,12 @@ showNode s a node   = case node of
   NConstr t as ->  iConcat [ iStr "Cons ", iNum t, iStr " ["
                            , iInterleave (iStr ", ") (map showAddr as), iStr "]" ]
   NgNode t n   ->  iConcat [ iStr "NgNode", iNum t, iStr " ", iNum n ]
+  {- exercise 5.8 -}
+  NLAp a1 a2   ->  iConcat
+                   [ iStr "*Ap ", showAddr a1
+                   , iStr " ",    showAddr a2 ]
+  NLGlobal _ _ ->  iConcat [iStr "*Global ", iStr v]
+    where v = head [n | (n,b) <- getGlobals s, a == b]
 
 {-
 debugNestedAp :: Heap Node -> Node -> IseqRep
