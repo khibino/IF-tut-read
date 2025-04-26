@@ -1014,6 +1014,7 @@ showNode s a node   = case node of
   NInd a1      ->  iConcat [iStr "Ind ", showAddr a1]  {- exercise 3.8 -}
   NConstr t as ->  iConcat [ iStr "Cons ", iNum t, iStr " ["
                            , iInterleave (iStr ", ") (map showAddr as), iStr "]" ]
+  NgNode t n   ->  iConcat [ iStr "NgNode", iNum t, iStr " ", iNum n ]
 
 {-
 debugNestedAp :: Heap Node -> Node -> IseqRep
