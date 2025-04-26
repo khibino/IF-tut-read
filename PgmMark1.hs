@@ -1006,7 +1006,7 @@ debugNestedAp heap = rec_ id
 showNode :: (PgmGlobalState, a) -> Addr -> Node -> IseqRep
 showNode s a node   = case node of
   NNum n       ->  iNum n
-  NGlobal n g  ->  iConcat [iStr "Global ", iStr v]
+  NGlobal _n _ ->  iConcat [iStr "Global ", iStr v]
     where v = head [n | (n,b) <- getGlobals s, a == b]
   NAp a1 a2    ->  iConcat
                    [ iStr "Ap ", showAddr a1
