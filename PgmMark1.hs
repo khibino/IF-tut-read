@@ -380,8 +380,8 @@ push n state =
         -- exercise 3.12
 
 getArg :: Node -> Addr
-getArg (NAp a1 a2) = a2
-getArg  n          = error $ "getArg: not NAp node: " ++ show n
+getArg (NAp _a1 a2) = a2
+getArg  n           = error $ "getArg: not NAp node: " ++ show n
 
 slide :: Int -> GmState -> GmState
 slide n state =
@@ -646,7 +646,7 @@ compileE (EAp (EVar "negate") e) env = compileE e env ++ [Neg]  {- Fig 3.12  p.1
 --   compileE e0 env ++ [Cond (compileE e1 env) (compileE e2 env)]  {- Fig 3.12  p.127 -}
 compileE (ECase e alts) env =
   compileE e env ++ [Casejump (compileAlts compileE' alts env)]  {- Fig 3.14  p.134 -}
-compileE (EConstr t n) env  =  [Pack t n]
+compileE (EConstr t n) _env =  [Pack t n]
 compileE e@(EAp {}) env
   | EConstr {} <- f  = concatI (++)  {- Fig 3.14  p.134  Pack -}
   where (f, concatI) = compileCaps e env 0
@@ -668,8 +668,8 @@ compileC (EVar v)     env
   | v `elem` (aDomain env)  =  [Push n]              {- Fig 3.10  p.114, Fig 3.3  p.100 -}
   | otherwise               =  [Pushglobal v]        {- Fig 3.10  p.114, Fig 3.3  p.100 -}
   where n = aLookup env v (error "compileC.EVar: Can't happen")
-compileC (ENum n)     env   =  [Pushint n]           {- Fig 3.10  p.114, Fig 3.3  p.100 -}
-compileC (EConstr t n) env  =  [Pushglobal $ "Pack{" ++ show t ++ "," ++ show n ++ "}"]
+compileC (ENum n)      _env  =  [Pushint n]           {- Fig 3.10  p.114, Fig 3.3  p.100 -}
+compileC (EConstr t n) _env  =  [Pushglobal $ "Pack{" ++ show t ++ "," ++ show n ++ "}"]
 compileC e@(EAp {})   env   =  case f of
   EConstr {}  ->  concatI (++)
   _           ->  concatI (\i2 i1 -> i2 ++ i1 ++ [Mkap])
@@ -677,9 +677,10 @@ compileC e@(EAp {})   env   =  case f of
 compileC (ELet recursive defs e) env
   | recursive  = compileLetrec compileC defs e env  {- Fig 3.10  p.114 -}
   | otherwise  = compileLet    compileC defs e env  {- Fig 3.10  p.114 -}
+compileC  e  _ = error $ "compileC: unknown rule: " ++ show e
 
 compileCaps :: CoreExpr -> GmEnvironment -> Int -> (CoreExpr, (GmCode -> GmCode -> GmCode) -> GmCode)
-compileCaps (f@(EConstr t n)) env c
+compileCaps (f@(EConstr t n)) _env c
   | c == n                           =  (f, \_      ->  [Pack t n])  {- Fig 3.14  p.134  Pack -}
 compileCaps (EAp e1 e2)       env c  =  (f, \ (<+>) ->  compileC e2 env <+> concatI1 (<+>))   {- Fig 3.10  p.114, Fig 3.3  p.100 -}
   where (f, concatI1) = compileCaps e1 (argOffset 1 env) (c+1)
@@ -691,7 +692,7 @@ compileLet comp defs expr env =
   where env' = compileArgs defs env
 
 compileLet' :: [(Name, CoreExpr)] -> GmEnvironment -> GmCode
-compileLet' []                   env = []
+compileLet' []                  _env = []
 compileLet' ((_name, expr):defs) env =
   compileC expr env ++ compileLet' defs (argOffset 1 env)
 
@@ -709,7 +710,7 @@ compileLetrec  comp defs expr env =
     n = length defs
 
 compileLetrec' :: [(Name, CoreExpr)] -> GmEnvironment -> GmCode
-compileLetrec' []                   env = []
+compileLetrec' []                  _env = []
 compileLetrec' ((_name, expr):defs) env =
   compileC expr env ++ [Update (length defs)] ++ compileLetrec' defs env
 
@@ -1066,6 +1067,7 @@ testProg0 = "main = S K K 3"
 testProg1 = "main = S K K" -- wrong not saturated
 testProg2 = "id = S K K;\n\
             \main = twice twice twice id 3"
+testProg2a, testProg3, testProg4 :: String
 testProg2a = "id = S K K;\n\
              \twic f x = f (f x);\n\
              \main = twic twic twic id 3"
@@ -1086,15 +1088,18 @@ testProg4 = "pair x y f = f x y ;\n\
             \        in\n\
             \        fst (snd (snd (snd a))) ;\n\
             \main = f 3 4"
+testFF, testFX, testFX3, testFG :: String
 testFF = "main = letrec f = f f in f"
 testFX = "main = letrec f = f x in f"
 testFX3 = "main = letrec f = f x in 3"
 testFG = "main = letrec f = g in f"
+testUpdate, testUpdate2 :: String
 testUpdate = "id x = x ;\n\
              \main = twice twice id 3"
 testUpdate2 = "id x = x ;\n\
               \main = twice twice twice id 3"
 
+testDouble0, testDouble1, testDouble2, testDouble3, testDouble4 :: String
 testDouble0 =
   "double x = x + x ;\n\
   \main = double 1"
@@ -1115,15 +1120,19 @@ testDouble4 =
   "double x = x + x ;\n\
   \main = double (double (S K K 3))"
 
+testTak :: String
 testTak =
   "tak x y z = if (y < x) (tak (tak (x-1) y z) (tak (y-1) z x) (tak (z-1) x y)) y ;\n\
   \main = tak 2 1 0"
 
+testNeg, testNeg2 :: String
 testNeg = "main = negate 3"
 testNeg2 = "main = negate (negate 3)"
 
+testTwiceNeg :: String
 testTwiceNeg = "main = twice negate 3"
 
+testPlusN, testPlus, testPlus2, testMul :: String
 testPlusN = "main = add 3 4"
 
 testPlus = "main = 3 + 4"
@@ -1132,11 +1141,14 @@ testPlus2 = "main = (1 + 2) + (4 + 8)"
 
 testMul = "main = 3 * 4"
 
+testInd :: String
 testInd = "main = let x = 3 in negate (I x)"
 
+testIf, testIf2 :: String
 testIf = "main = if True 0 1"
 testIf2 = "main = if False 0 1"
 
+testFac, testCasePair, testLength, testPrintList, testPrintList2, testY :: String
 -- exercise 2.21
 testFac = "fac n = if (n == 0) 1 (n * fac (n-1)) ;\
           \main = fac 3"
@@ -1151,6 +1163,7 @@ testPrintList2 = "main = Cons (1 + 2) (Cons 2 (Cons 3 Nil))"
 
 testY = "Y f = letrec x = f x in x"
 
+testB11A, testB11B, testB11C, testB12 :: String
 -- exercise 3.13
 testB11A = "main = I 3"
 
@@ -1162,6 +1175,7 @@ testB11C = "id = S K K ;\
 
 testB12 = "main = twice (I I I) 3"
 
+testB32fac, testB32gcd, testB32gcdS, testB32nfib, testB32nfibx :: String
 testB32fac = "fac n = if (n==0) 1 (n * fac (n-1)) ;\
              \main = fac 5"
 
@@ -1186,13 +1200,16 @@ testB32nfibx = "nfib n = if (n < 2) \
                \            (nfib (n-1) + nfib (n-2)) ;\
                \main = nfib 10"
 
+testThunk :: String
 testThunk = "fac n = if (n==0) 1 (n * fac (n-1)) ;\
             \main = K 2 (fac 5)"
 
+bug_mark6_unwind0_A, bug_mark6_unwind0_B :: String
 bug_mark6_unwind0_A = "main = I I 3"
 
 bug_mark6_unwind0_B = testB32nfib
 
+ex_5_6_par, ex_5_6_single :: String
 {- exercise 5.6
 ex_5_6_par:
   Clocks: [48,27]
