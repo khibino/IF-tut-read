@@ -471,6 +471,13 @@ lock addr state = putHeap (newHeap (hLookup heap addr)) state
         newHeap (NGlobal n c) | n == 0  = hUpdate heap addr (NLGlobal n c)
         newHeap  _                      = heap
 
+unlock :: Addr -> GmState -> GmState
+unlock addr state = newState (hLookup heap addr)
+  where heap = getHeap state
+        newState (NLAp a1 a2)    = unlock a1 (putHeap (hUpdate heap addr (NAp a1 a2)) state)
+        newState (NLGlobal n c)  = putHeap (hUpdate heap addr (NGlobal n c)) state
+        newState  _node          = state
+
 -----
 
 primitive1 :: (b -> GmState -> GmState)  -- boxing function
