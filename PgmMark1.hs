@@ -1193,7 +1193,6 @@ bug_mark6_unwind0_A = "main = I I 3"
 
 bug_mark6_unwind0_B = testB32nfib
 
-
 {- exercise 5.6
 ex_5_6_par:
   Clocks: [48,27]
@@ -1202,6 +1201,20 @@ ex_5_6_single
  -}
 ex_5_6_par = "main = par (S K K) (S K K 3)"
 ex_5_6_single = "main = (S K K) (S K K 3)"
+
+{- exercise 5.7
+ex_5_7_par:
+  Clocks: [23,10]
+ex_5_7_single:
+  Clocks: [30]
+
+10ステップ分は切り離されて、
+メインスレッドは 30 -> 23 へ 7 ステップ減少しているので意味はありそう.
+ -}
+ex_5_7_par :: String
+ex_5_7_par = "main = par I (I 3)"
+ex_5_7_single :: String
+ex_5_7_single = "main = I (I 3)"
 
 test_ :: Bool -> String -> IO ()
 test_ _nestedDebug = putStrLn . showResults . eval . compile . parse
