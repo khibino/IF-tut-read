@@ -381,7 +381,8 @@ push n state =
 
 getArg :: Node -> Addr
 getArg (NAp _a1 a2) = a2
-getArg  n           = error $ "getArg: not NAp node: " ++ show n
+getArg (NInd a)     = a
+getArg  n           = error $ "getArg: not NAp or NInd node: " ++ show n
 
 slide :: Int -> GmState -> GmState
 slide n state =
