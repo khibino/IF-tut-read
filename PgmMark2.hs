@@ -382,7 +382,8 @@ push n state =
         -- exercise 3.12
 
 getArg :: Node -> Addr
-getArg (NAp _a1 a2) = a2
+getArg (NAp  _a1 a2) = a2
+getArg (NLAp _a1 a2) = a2  {- exercise 5.9 -}
 getArg (NInd a)     = a
 getArg  n           = error $ "getArg: not NAp or NInd node: " ++ show n
 
