@@ -393,11 +393,15 @@ slide n state =
   where (a, as) = stkPop $ getStack state
 
 update :: Int -> GmState -> GmState
-update n state = putStack stk1 $ putHeap heap' state
+update n state =
+  putStack stk1 $ setNInd $
+  unlock na state  {- rule 5.4, exercise 5.9 -}
+  {- rule 5.4 は rule 3.15 と比べると a0 が抜けているように見えるが、
+     これは間違いだと想定する -}
   where
     (ea, stk1) = stkPop $ getStack state
     na = list stk1 !! n
-    heap' = hUpdate (getHeap state) na (NInd ea)
+    setNInd st = putHeap (hUpdate (getHeap st) na (NInd ea)) st
 
 -- exercise 3.15
 alloc :: Int -> GmState -> GmState
