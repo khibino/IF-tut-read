@@ -740,6 +740,7 @@ compiledPrimitives =
   , op2 "<=" Le
   , op2 ">"  Gt
   , op2 ">=" Ge
+  , ("par", 2, [Push 1, Push 1, Mkap, Push 2, Par, Update 2, Pop 2, Unwind])
   --- , ("if", 3, [Push 0, Eval, Cond [Push 1] [Push 2], Update 3, Pop 3, Unwind])
   ]
   where
