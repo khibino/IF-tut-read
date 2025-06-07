@@ -1346,3 +1346,6 @@ checkList =
   , (NNum    3, "main = length (Cons 1 (Cons 2 (Cons 3 Nil)))") -- caseList
  -}
   ]
+
+main :: IO ()
+main = getContents >>= test
