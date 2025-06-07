@@ -316,6 +316,7 @@ unwind state =
         heap    = getHeap state
         dump    = getDump state
 
+        {- この NNum の場合分けを、Eval の時点でやると dump の上げ下げを節約できる? -}
         newState (NNum _n)
           | null (list dump)  = state  {- rule 3.10 -}
           | otherwise         = putCode i' $ putStack (stkPush a s') $ putDump dump' $ state {- rule 3.22-} {- TODO: save maxDepth of as -}
@@ -330,6 +331,7 @@ unwind state =
           where k = depth as
                 rstack = rearrange n (getHeap state) $ getStack state  {- exercise 3.12 -}
         newState (NInd a1) =  putCode [Unwind] (putStack (a1<:>as) state)
+        {- この NConstr の場合分けを、Eval の時点でやると dump の上げ下げを節約できる? -}
         newState (NConstr _n _as) = putCode i' $ putStack (a<:>s') $ putDump dump' state  {- rule 3.35 -}
           where ((i',s'), dump') = stkPop dump
         -- newState  n        =  error $ "unwind.newState: unknown node: " ++ show n
