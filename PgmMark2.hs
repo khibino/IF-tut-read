@@ -877,7 +877,9 @@ showState s@(gl, locals) =
     , iIndent (showStack gm), iNewline
     , iIndent (showDump gm), iNewline
     , iIndent (showVStack gm), iNewline
-    , iIndent (showInstructions (getCode gm)), iNewline]
+    , iIndent (showInstructions (getCode gm)), iNewline
+    , iIndent (showLog (getLog gm)), iNewline
+    ]
   | n <- [(1::Int)..] | local <- locals, let gm = (gl, local)
   ] ++
   [ showSparks s ]
@@ -997,6 +999,14 @@ shortShowStack stack =
   iConcat
   [ iStr "["
   , iInterleave (iStr ", ") (map showAddr $ list stack)
+  , iStr "]"
+  ]
+
+showLog :: GmLog -> IseqRep
+showLog lstr =
+  iConcat
+  [ iStr "  Log:["
+  , iIndent (iInterleave iNewline $ map iStr $ lines lstr)
   , iStr "]"
   ]
 
