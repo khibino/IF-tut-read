@@ -860,6 +860,7 @@ showState :: PgmState -> IseqRep
 showState s@(gl, locals) =
   iConcat $
   [ showOutput s, iNewline
+  , showHeap s, iNewline
   ] ++
   concat
   [ [ iStr (show n ++ ":"), iNewline
@@ -993,21 +994,20 @@ shortShowStack stack =
   , iStr "]"
   ]
 
-{-
-showHeap :: GmHeap -> IseqRep
-showHeap heap = undefined
- -}
-  -- Heap { allocs = contents, count = c } -> iConcat
-  --   [ iStr "Heap ["
-  --   , iIndent (iInterleave iNewline (map showHeapItem contents))
-  --   , iStr " ]"
-  --   , iNewline, iIndent (iStr "Allocation count = " `iAppend` iNum c)
-  --   ]
-  -- where
-  --   showHeapItem (addr, node) =
-  --     iConcat [ showFWAddr addr, iStr ": "
-  --             , showNode node
-  --             ]
+showHeap :: PgmState -> IseqRep
+showHeap s = case heap of
+  Heap { allocs = contents, count = c } -> iConcat
+    [ iStr "Heap ["
+    , iIndent (iInterleave iNewline (map showHeapItem contents))
+    , iStr " ]"
+    , iNewline, iIndent (iStr "Allocation count = " `iAppend` iNum c)
+    ]
+  where
+    heap = getHeap s
+    showHeapItem (addr, node) =
+      iConcat [ showFWAddr addr, iStr ": "
+              , showNode s addr node
+              ]
 
 {-
 debugNestedAp :: Heap Node -> Node -> IseqRep
