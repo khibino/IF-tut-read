@@ -80,6 +80,7 @@ type PgmLocalState =
   , GmDump
   , GmVStack
   , GmClock
+  , GmLog
   )
 
 ---
@@ -87,11 +88,11 @@ type PgmLocalState =
 type GmCode = [Instruction]
 
 getCode :: GmState -> GmCode
-getCode (_gl, (i, _stack, _dump, _vstack, _clock)) = i
+getCode (_gl, (i, _stack, _dump, _vstack, _clock, _lstr)) = i
 
 putCode :: GmCode -> GmState -> GmState
-putCode i' (gl, (_i, stack, dump, vstack, clock)) =
-  (gl, (i', stack, dump, vstack, clock))
+putCode i' (gl, (_i, stack, dump, vstack, clock, lstr)) =
+  (gl, (i', stack, dump, vstack, clock, lstr))
 
 data Instruction
   = Unwind
@@ -118,39 +119,48 @@ type GmStack = Stack Addr
 -- type GmStack = [Addr]
 
 getStack :: GmState -> GmStack
-getStack (_gl, (_i, stack, _dump, _vstack, _clock)) = stack
+getStack (_gl, (_i, stack, _dump, _vstack, _clock, _lstr)) = stack
 
 putStack :: GmStack -> GmState -> GmState
-putStack stack' (gl, (i, _stack, dump, vstack, clock)) =
-  (gl, (i, stack', dump, vstack, clock))
+putStack stack' (gl, (i, _stack, dump, vstack, clock, lstr)) =
+  (gl, (i, stack', dump, vstack, clock, lstr))
 
 type GmDump = Stack GmDumpItem
 type GmDumpItem = (GmCode, GmStack)
 
 getDump :: GmState -> GmDump
-getDump (_gl, (_i, _stack, dump, _vstack, _clock)) = dump
+getDump (_gl, (_i, _stack, dump, _vstack, _clock, _lstr)) = dump
 
 putDump :: GmDump -> GmState -> GmState
-putDump dump' (gl, (i, stack, _dump, vstack, clock)) =
-  (gl, (i, stack, dump', vstack, clock))
+putDump dump' (gl, (i, stack, _dump, vstack, clock, lstr)) =
+  (gl, (i, stack, dump', vstack, clock, lstr))
 
 type GmVStack = [Int]
 
 getVStack :: GmState -> GmVStack
-getVStack (_gl, (_i, _stack, _dump, vstack, _clock)) = vstack
+getVStack (_gl, (_i, _stack, _dump, vstack, _clock, _lstr)) = vstack
 
 putVStack :: GmVStack -> GmState -> GmState
-putVStack vstack' (gl, (i, stack, dump, _vstack, clock)) =
-  (gl, (i, stack, dump, vstack', clock))
+putVStack vstack' (gl, (i, stack, dump, _vstack, clock, lstr)) =
+  (gl, (i, stack, dump, vstack', clock, lstr))
 
 type GmClock = Int
 
 getClock :: GmState -> GmClock
-getClock (_gl, (_i, _stack, _dump, _vstack, clock)) = clock
+getClock (_gl, (_i, _stack, _dump, _vstack, clock, _lstr)) = clock
 
 putClock :: GmClock -> GmState -> GmState
-putClock clock' (gl, (i, stack, dump, vstack, _clock)) =
-  (gl, (i, stack, dump, vstack, clock'))
+putClock clock' (gl, (i, stack, dump, vstack, _clock, lstr)) =
+  (gl, (i, stack, dump, vstack, clock', lstr))
+
+type GmLog = String
+
+getLog :: GmState -> GmLog
+getLog (_gl, (_i, _stack, _dump, _vstack, _clock, lstr)) = lstr
+
+putLog :: GmLog -> GmState -> GmState
+putLog lstr' (gl, (i, stack, dump, vstack, clock, _lstr)) =
+  (gl, (i, stack, dump, vstack, clock, lstr'))
 
 ---
 
@@ -276,7 +286,7 @@ doAdmin ((out, heap, globals, sparks, stats), local) =
   ((out, heap, globals, sparks, stats'), local')
   where
     (local', stats') = foldr filter_ ([], stats) local
-    filter_ lo@(i, _stack, _dump, _vstack, clock) (local_, stats_)
+    filter_ lo@(i, _stack, _dump, _vstack, clock, _lstr) (local_, stats_)
       | null i     = (local_, clock : stats_)
       | otherwise  = (lo : local_, stats_)
 
@@ -301,10 +311,10 @@ step global local = dispatch i (putCode is state)
     state = (global, local)
 
 makeTask :: Addr -> PgmLocalState
-makeTask addr = ([Eval], stkOfList [addr] 0, stkOfList [] 0, [], 0)
+makeTask addr = ([Eval], stkOfList [addr] 0, stkOfList [] 0, [], 0, "")
 
 tick :: PgmLocalState -> PgmLocalState
-tick (i, stack, dump, vstack, clock) = (i, stack, dump, vstack, clock + 1)
+tick (i, stack, dump, vstack, clock, lstr) = (i, stack, dump, vstack, clock + 1, lstr)
 
 dispatch :: Instruction -> GmState -> GmState
 dispatch = d
@@ -606,7 +616,7 @@ allocateSc heap (name, nargs, instns) =
   where (heap', addr) = hAlloc heap (NGlobal nargs instns)
 
 initialTask :: Addr -> PgmLocalState
-initialTask addr = (initialCode, Stack [addr] 1 1, Stack [] 0 0, [], 0)
+initialTask addr = (initialCode, Stack [addr] 1 1, Stack [] 0 0, [], 0, "")
 
 initialCode :: GmCode
 initialCode = [Eval, Print]
