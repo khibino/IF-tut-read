@@ -504,11 +504,11 @@ par state = state'
         state' = putSparks (a : getSparks state) (putStack s state)
 
 lock :: Addr -> GmState -> GmState
-lock addr state = putHeap (newHeap (hLookup heap addr)) state
+lock addr state = newHeap (hLookup heap addr) state
   where heap = getHeap state
-        newHeap (NAp a1 a2) = hUpdate heap addr (NLAp a1 a2)
-        newHeap (NGlobal n c) | n == 0  = hUpdate heap addr (NLGlobal n c)
-        newHeap  _                      = heap
+        newHeap (NAp a1 a2)   st           = putHeap (hUpdate heap addr (NLAp a1 a2))   st
+        newHeap (NGlobal n c) st | n == 0  = putHeap (hUpdate heap addr (NLGlobal n c)) st
+        newHeap  _            st           = st
 
 unlock :: Addr -> GmState -> GmState
 unlock addr state = newState (hLookup heap addr)
