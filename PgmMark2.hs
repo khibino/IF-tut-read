@@ -506,8 +506,10 @@ par state = state'
 lock :: Addr -> GmState -> GmState
 lock addr state = newHeap (hLookup heap addr) state
   where heap = getHeap state
-        newHeap (NAp a1 a2)   st           = putHeap (hUpdate heap addr (NLAp a1 a2))   st
-        newHeap (NGlobal n c) st | n == 0  = putHeap (hUpdate heap addr (NLGlobal n c)) st
+        appendLog = (++ "  lock: " ++ iDisplay (showNodeA state addr) ++ "\n")
+        incLocks st = putLocks (addr : getLocks st) $ putLog (appendLog $ getLog st) st
+        newHeap (NAp a1 a2)   st           = putHeap (hUpdate heap addr (NLAp a1 a2))   $ incLocks st
+        newHeap (NGlobal n c) st | n == 0  = putHeap (hUpdate heap addr (NLGlobal n c)) $ incLocks st
         newHeap  _            st           = st
 
 unlock :: Addr -> GmState -> GmState
