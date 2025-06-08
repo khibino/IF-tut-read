@@ -923,11 +923,7 @@ showStack gm =
    , iStr "]"
    ]
   where
-    showStackItem a =
-      iConcat
-      [ showFWAddr a,  iStr ": "
-      , showNode gm a (hLookup (getHeap gm) a)
-      ]
+    showStackItem a = showNodeA gm a
 
 {-
 showStackMaxDepth :: GmStack -> IseqRep
@@ -1028,6 +1024,9 @@ debugNestedAp heap = rec_ id
     showNData t as = unwords $ ("<" ++ show t ++ ">") : map showA as
     showA a = "[" ++ show a ++ "]"
  -}
+
+showNodeA :: (PgmGlobalState, a) -> Addr -> IseqRep
+showNodeA s a = iConcat [ showFWAddr a,  iStr ": ", showNode s a (hLookup (getHeap s) a) ]
 
 showNode :: (PgmGlobalState, a) -> Addr -> Node -> IseqRep
 showNode s a node   = case node of
