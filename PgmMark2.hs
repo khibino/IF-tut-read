@@ -899,6 +899,7 @@ showState s@(gl, locals) =
     , iIndent (showVStack gm), iNewline
     , iIndent (showInstructions (getCode gm)), iNewline
     , iIndent (showLocks gm), iNewline
+    , iIndent (showWait gm), iNewline
     , iIndent (showLog (getLog gm)), iNewline
     ]
   | n <- [(1::Int)..] | local <- locals, let gm = (gl, local)
@@ -1030,6 +1031,17 @@ showLocks gm =
   , iIndent (iInterleave iNewline [showNodeA gm lk | lk <- getLocks gm])
   , iStr "]"
   ]
+
+showWait :: GmState -> IseqRep
+showWait gm =
+  iConcat
+  [ iStr "Wait: "
+  , iIndent (showWA $ getWait gm)
+  ]
+  where
+    showWA wa
+      | wa < 0     = iStr "(running)"
+      | otherwise  = showNodeA gm wa
 
 showLog :: GmLog -> IseqRep
 showLog lstr =
