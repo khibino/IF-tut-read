@@ -460,14 +460,22 @@ unwind state =
         heap    = getHeap state
         dump    = getDump state
 
+        wa = getWait state
+        setWaiting st
+          | wa < 0     = putWait a st
+          | otherwise  = st
+        setRunning st
+          | wa >= 0    = putWait (-1) st
+          | otherwise  = st
+
         newState (NNum _n)
           | null (list dump)  = state  {- rule 3.10 -}
           | otherwise         = putCode i' $ putStack (stkPush a s') $ putDump dump' $ state {- rule 3.22-} {- TODO: save maxDepth of as -}
             where ((i',s'), dump') = stkPop dump
-        newState (NAp a1 _a2) = putCode [Unwind] (lock a (putStack (a1<:>a<:>as) state))  {- rule 5.2 -}  {- exercise 5.9 -}
-        newState (NLAp {})    = putCode [Unwind] state                                    {- wait NLAp -}  {- exercise 5.9 -}
+        newState (NAp a1 _a2) = putCode [Unwind] (setRunning $ lock a (putStack (a1<:>a<:>as) state))  {- rule 5.2 -}  {- exercise 5.9 -}
+        newState (NLAp {})    = putCode [Unwind] (setWaiting   state)                                  {- wait NLAp -}  {- exercise 5.9 -}
         newState (NGlobal n c)
-          | n == 0            =  putCode c $ lock a state  {- rule 5.3, exercise 5.9 -}
+          | n == 0            =  putCode c $ lock a (setRunning state)  {- rule 5.3, exercise 5.9 -}
           | k < n             =  putCode i $ putStack (stkPush ak s) $ putDump dump' state  {- rule 3.29 -}  {- exercise 3.29 -}
           | otherwise         =  putCode c $ putStack rstack state  {- rule 3.19, updated from rule 3.12 -}
           where ((i,s), dump') = stkPop dump
@@ -475,7 +483,7 @@ unwind state =
                 k = depth as
                 rstack = rearrange n (getHeap state) $ getStack state  {- exercise 3.12 -}
         newState (NLGlobal _n _c)
-                              =  putCode [Unwind] state  {- wait NLGlobal, exercise 5.9 -}
+                              =  putCode [Unwind]   (setWaiting state)  {- wait NLGlobal, exercise 5.9 -}
         newState (NInd a1)    =  putCode [Unwind] (putStack (a1<:>as) state)
         newState (NConstr _n _as) = putCode i' $ putStack (a<:>s') $ putDump dump' state  {- rule 3.35 -}
           where ((i',s'), dump') = stkPop dump
