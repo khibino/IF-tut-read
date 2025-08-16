@@ -412,10 +412,10 @@ push n state =
         -- exercise 3.12
 
 getArg :: Node -> Addr
-getArg (NAp  _a1 a2) = a2
-getArg (NLAp _a1 a2) = a2  {- exercise 5.9 -}
-getArg (NInd a)     = a
-getArg  n           = error $ "getArg: not NAp or NInd node: " ++ show n
+getArg (NAp  _a1 a2)    = a2
+getArg (NLAp _a1 a2)    = a2  {- exercise 5.9 -}
+getArg (NInd a)         = a
+getArg  n               = error $ "getArg: not NAp or NInd node: " ++ show n
 
 slide :: Int -> GmState -> GmState
 slide n state =
@@ -525,8 +525,8 @@ unlock addr state = newState (hLookup heap addr)
   where heap = getHeap state
         appendLog = (++ "unlock: " ++ iDisplay (showNodeA state addr) ++ "\n")
         decLocks st = putLocks [a | a <- getLocks st, a /= addr] $ putLog (appendLog $ getLog st) st
-        newState (NLAp a1 a2)    = unlock a1 (putHeap (hUpdate heap addr (NAp a1 a2)) $ decLocks state)
-        newState (NLGlobal n c)  = putHeap (hUpdate heap addr (NGlobal n c))          $ decLocks state
+        newState (NLAp a1 a2)      = unlock a1 (putHeap (hUpdate heap addr (NAp a1 a2)) $ decLocks state)
+        newState (NLGlobal n c)    = putHeap (hUpdate heap addr (NGlobal n c))          $ decLocks state
         newState  _node            = state
 
 -----
@@ -1103,21 +1103,21 @@ showNodeA s a = iConcat [ showFWAddr a,  iStr ": ", showNode s a (hLookup (getHe
 
 showNode :: (PgmGlobalState, a) -> Addr -> Node -> IseqRep
 showNode s a node   = case node of
-  NNum n       ->  iNum n
-  NGlobal _n _ ->  iConcat [iStr "Global ", iStr v]
+  NNum n          ->  iNum n
+  NGlobal _n _    ->  iConcat [iStr "Global ", iStr v]
     where v = head [n | (n,b) <- getGlobals s, a == b]
-  NAp a1 a2    ->  iConcat
-                   [ iStr "Ap ", showAddr a1
-                   , iStr " ",   showAddr a2 ]
-  NInd a1      ->  iConcat [iStr "Ind ", showAddr a1]  {- exercise 3.8 -}
-  NConstr t as ->  iConcat [ iStr "Cons ", iNum t, iStr " ["
+  NAp a1 a2       ->  iConcat
+                      [ iStr "Ap ", showAddr a1
+                      , iStr " ",   showAddr a2 ]
+  NInd a1         ->  iConcat [iStr "Ind ", showAddr a1]  {- exercise 3.8 -}
+  NConstr t as    ->  iConcat [ iStr "Cons ", iNum t, iStr " ["
                            , iInterleave (iStr ", ") (map showAddr as), iStr "]" ]
-  NgNode t n   ->  iConcat [ iStr "NgNode", iNum t, iStr " ", iNum n ]
+  NgNode t n      ->  iConcat [ iStr "NgNode", iNum t, iStr " ", iNum n ]
   {- exercise 5.8 -}
-  NLAp a1 a2   ->  iConcat
-                   [ iStr "*Ap ", showAddr a1
-                   , iStr " ",    showAddr a2 ]
-  NLGlobal _ _ ->  iConcat [iStr "*Global ", iStr v]
+  NLAp a1 a2      ->  iConcat
+                      [ iStr "*Ap ", showAddr a1
+                      , iStr " ",    showAddr a2 ]
+  NLGlobal _ _    ->  iConcat [iStr "*Global ", iStr v]
     where v = head [n | (n,b) <- getGlobals s, a == b]
 
 {-
