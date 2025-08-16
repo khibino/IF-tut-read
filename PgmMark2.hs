@@ -923,18 +923,20 @@ showState s@(gl, locals) =
   , showHeap s, iNewline
   ] ++
   concat
-  [ [ iStr (show (getLocalId gm) ++ ":"), iNewline
-    , iIndent (showStack gm), iNewline
-    , iIndent (showDump gm), iNewline
-    , iIndent (showVStack gm), iNewline
-    , iIndent (showInstructions (getCode gm)), iNewline
-    , iIndent (showLocks gm), iNewline
-    , iIndent (showWait gm), iNewline
-    , iIndent (showLog (getLog gm)), iNewline
+  [ [ iIndent (iStr id'), iNewline
+    , iIndent (iStr id'), showStack gm, iNewline
+    , iIndent (iStr id'), showDump gm, iNewline
+    , iIndent (iStr id'), showVStack gm, iNewline
+    , iIndent (iStr id'), showInstructions (getCode gm), iNewline
+    , iIndent (iStr id'), showLocks gm, iNewline
+    , iIndent (iStr id'), showWait gm, iNewline
+    , iIndent (iStr id'), showLog (getLog gm), iNewline
     ]
-  | _n <- [(1::Int)..] | local <- locals, let gm = (gl, local)
+  | _n <- [(1::Int)..] | local <- locals, let gm = (gl, local), let id' = showNum (getLocalId gm) ++ ": "
   ] ++
   [ showSparks s ]
+  where showNum n = replicate (3 - length str) ' ' ++ str
+          where str = show n
 
 showOutput :: PgmState -> IseqRep
 showOutput s = iConcat [iStr "Output:\"", iStr (getOutput s), iStr "\""]
