@@ -228,8 +228,8 @@ data Node
   | NInd Addr            -- Indirections
   | NConstr Int [Addr]
   | NgNode Int Int
-  | NLAp Addr Addr       -- Locked Applications
-  | NLGlobal Int GmCode  -- Locked Globals
+  | NLAp GmLocalId Addr Addr       -- Locked Applications
+  | NLGlobal GmLocalId Int GmCode  -- Locked Globals
   deriving Show
 
 instance Eq Node
@@ -431,7 +431,7 @@ push n state =
 
 getArg :: Node -> Addr
 getArg (NAp  _a1 a2)    = a2
-getArg (NLAp _a1 a2)    = a2  {- exercise 5.9 -}
+getArg (NLAp _ _a1 a2)  = a2  {- exercise 5.9 -}
 getArg (NInd a)         = a
 getArg  n               = error $ "getArg: not NAp or NInd node: " ++ show n
 
@@ -500,7 +500,7 @@ unwind state =
                 (ak, _) = stkPop $ discard k $ getStack state
                 k = depth as
                 rstack = rearrange n (getHeap state) $ getStack state  {- exercise 3.12 -}
-        newState (NLGlobal _n _c)
+        newState (NLGlobal _ _n _c)
                               =  putCode [Unwind]   (setWaiting state)  {- wait NLGlobal, exercise 5.9 -}
         newState (NInd a1)    =  putCode [Unwind] (putStack (a1<:>as) state)
         newState (NConstr _n _as) = putCode i' $ putStack (a<:>s') $ putDump dump' state  {- rule 3.35 -}
@@ -534,8 +534,9 @@ lock addr state = newHeap (hLookup heap addr) state
   where heap = getHeap state
         appendLog = (++ "  lock: " ++ iDisplay (showNodeA state addr) ++ "\n")
         incLocks st = putLocks (addr : getLocks st) $ putLog (appendLog $ getLog st) st
-        newHeap (NAp a1 a2)   st           = putHeap (hUpdate heap addr (NLAp a1 a2))   $ incLocks st
-        newHeap (NGlobal n c) st | n == 0  = putHeap (hUpdate heap addr (NLGlobal n c)) $ incLocks st
+        myId = getLocalId state
+        newHeap (NAp a1 a2)   st           = putHeap (hUpdate heap addr (NLAp myId a1 a2))   $ incLocks st
+        newHeap (NGlobal n c) st | n == 0  = putHeap (hUpdate heap addr (NLGlobal myId n c)) $ incLocks st
         newHeap  _            st           = st
 
 unlock :: Addr -> GmState -> GmState
@@ -543,8 +544,8 @@ unlock addr state = newState (hLookup heap addr)
   where heap = getHeap state
         appendLog = (++ "unlock: " ++ iDisplay (showNodeA state addr) ++ "\n")
         decLocks st = putLocks [a | a <- getLocks st, a /= addr] $ putLog (appendLog $ getLog st) st
-        newState (NLAp a1 a2)      = unlock a1 (putHeap (hUpdate heap addr (NAp a1 a2)) $ decLocks state)
-        newState (NLGlobal n c)    = putHeap (hUpdate heap addr (NGlobal n c))          $ decLocks state
+        newState (NLAp _ a1 a2)      = unlock a1 (putHeap (hUpdate heap addr (NAp a1 a2)) $ decLocks state)
+        newState (NLGlobal _ n c)    = putHeap (hUpdate heap addr (NGlobal n c))          $ decLocks state
         newState  _node            = state
 
 -----
@@ -1134,11 +1135,13 @@ showNode s a node   = case node of
                            , iInterleave (iStr ", ") (map showAddr as), iStr "]" ]
   NgNode t n      ->  iConcat [ iStr "NgNode", iNum t, iStr " ", iNum n ]
   {- exercise 5.8 -}
-  NLAp a1 a2      ->  iConcat
-                      [ iStr "*Ap ", showAddr a1
+  NLAp lid a1 a2  ->  iConcat
+                      [ iStr "*Ap ", iStr (showLid lid)
+                      , iStr " ",    showAddr a1
                       , iStr " ",    showAddr a2 ]
-  NLGlobal _ _    ->  iConcat [iStr "*Global ", iStr v]
+  NLGlobal lid _ _ ->  iConcat [iStr "*Global ", iStr (showLid lid), iStr " ", iStr v]
     where v = head [n | (n,b) <- getGlobals s, a == b]
+  where showLid lid = "<" ++ (show lid) ++ ">"
 
 {-
 debugNestedAp :: Heap Node -> Node -> IseqRep
