@@ -72,6 +72,7 @@ type PgmGlobalState =
   , GmGlobals
   , GmSparks
   , GmStats
+  , GmLocalId
   )
 
 type PgmLocalState =
@@ -155,6 +156,8 @@ putClock :: GmClock -> GmState -> GmState
 putClock clock' (gl, (i, stack, dump, vstack, _clock, locks, wait, lstr)) =
   (gl, (i, stack, dump, vstack, clock', locks, wait, lstr))
 
+type GmLocalId = Int
+
 type GmLocks = [Addr]
 
 getLocks :: GmState -> GmLocks
@@ -191,11 +194,11 @@ pgmGetOutput = getOutput
 
 {- getOutput :: GmState -> GmOutput -}
 getOutput :: (PgmGlobalState, a) -> GmOutput
-getOutput ((out, _heap, _globals, _sparks, _stats), _lo) = out
+getOutput ((out, _heap, _globals, _sparks, _stats, _lastId), _lo) = out
 
 putOutput :: GmOutput -> GmState -> GmState
-putOutput out' ((_out, heap, globals, sparks, stats), lo) =
-  ((out', heap, globals, sparks, stats), lo)
+putOutput out' ((_out, heap, globals, sparks, stats, lastId), lo) =
+  ((out', heap, globals, sparks, stats, lastId), lo)
 
 type GmHeap = Heap Node
 
@@ -204,11 +207,11 @@ pgmGetHeap = getHeap
 
 {- getHeap :: GmState -> GmHeap -}
 getHeap :: (PgmGlobalState, a) -> GmHeap
-getHeap ((_out, heap, _globals, _sparks, _stats), _lo) = heap
+getHeap ((_out, heap, _globals, _sparks, _stats, _lastId), _lo) = heap
 
 putHeap :: GmHeap -> GmState -> GmState
-putHeap heap' ((out, _heap, globals, sparks, stats), lo) =
-  ((out, heap', globals, sparks, stats), lo)
+putHeap heap' ((out, _heap, globals, sparks, stats, lastId), lo) =
+  ((out, heap', globals, sparks, stats, lastId), lo)
 
 data Node
   = NNum Int             -- Numbers
@@ -233,11 +236,11 @@ pgmGetGlobals = getGlobals
 
 {- getGlobals :: GmState -> GmGlobals -}
 getGlobals :: (PgmGlobalState, a) -> GmGlobals
-getGlobals ((_out, _heap, globals, _sparks, _stats), _lo) = globals
+getGlobals ((_out, _heap, globals, _sparks, _stats, _lastId), _lo) = globals
 
 putGlobals :: GmGlobals -> GmState -> GmState
-putGlobals globals' ((out, heap, _globals, sparks, stats), lo) =
-  ((out, heap, globals', sparks, stats), lo)
+putGlobals globals' ((out, heap, _globals, sparks, stats, lastId), lo) =
+  ((out, heap, globals', sparks, stats, lastId), lo)
 
 type GmSparks = [Addr]
 
@@ -246,11 +249,11 @@ pgmGetSparks = getSparks
 
 {- getSparks :: GmState -> GmSparks -}
 getSparks :: (PgmGlobalState, a) -> GmSparks
-getSparks ((_out, _heap, _globals, sparks, _stats), _lo) = sparks
+getSparks ((_out, _heap, _globals, sparks, _stats, _lastId), _lo) = sparks
 
 putSparks :: GmSparks -> GmState -> GmState
-putSparks sparks' ((out, heap, globals, _sparks, stats), lo) =
-  ((out, heap, globals, sparks', stats), lo)
+putSparks sparks' ((out, heap, globals, _sparks, stats, lastId), lo) =
+  ((out, heap, globals, sparks', stats, lastId), lo)
 
 type GmStats = [Int]
 
@@ -280,11 +283,18 @@ pgmGetStats = getStats
 
 {- getStats :: GmState -> GmStats -}
 getStats :: (PgmGlobalState, a) -> GmStats
-getStats ((_out, _heap, _globals, _sparks, stats), _lo) = stats
+getStats ((_out, _heap, _globals, _sparks, stats, _lastId), _lo) = stats
 
 putStats :: GmStats -> GmState -> GmState
-putStats stats' ((out, heap, globals, sparks, _stats), lo) =
-  ((out, heap, globals, sparks, stats'), lo)
+putStats stats' ((out, heap, globals, sparks, _stats, lastId), lo) =
+  ((out, heap, globals, sparks, stats', lastId), lo)
+
+getLastLocalId :: (PgmGlobalState, a) -> GmLocalId
+getLastLocalId ((_out, _heap, _globals, _sparks, _stats, lastId), _lo) = lastId
+
+putLastLocalId :: GmLocalId -> GmState -> GmState
+putLastLocalId lastId' ((out, heap, globals, sparks, stats, _lastId), lo) =
+  ((out, heap, globals, sparks, stats, lastId'), lo)
 
 ---
 
@@ -302,8 +312,8 @@ eval_ :: GmState -> [GmState]
 eval_ = undefined
 
 doAdmin :: PgmState -> PgmState
-doAdmin ((out, heap, globals, sparks, stats), local) =
-  ((out, heap, globals, sparks, stats'), local')
+doAdmin ((out, heap, globals, sparks, stats, lastId), local) =
+  ((out, heap, globals, sparks, stats', lastId), local')
   where
     (local', stats') = foldr filter_ ([], stats) local
     filter_ lo@(i, _stack, _dump, _vstack, clock, _locks, _wait, _lstr) (local_, stats_)
@@ -319,9 +329,9 @@ steps :: PgmState -> PgmState
 steps state =
   mapAccumL step global' local'
   where
-    ((out, heap, globals, sparks, stats), local) = state
-    newtasks  = [makeTask a | a <- sparks]
-    global'   = (out, heap, globals, [], stats)
+    ((out, heap, globals, sparks, stats, lastId), local) = state
+    newtasks  = [makeTask lid a | lid <- [lastId+1 ..] | a <- sparks ]
+    global'   = (out, heap, globals, [], stats, lastId + length newtasks)
     local'    = map tick (local ++ newtasks)
 
 step :: PgmGlobalState -> PgmLocalState -> GmState
@@ -330,8 +340,8 @@ step global local = dispatch i (putCode is state)
     (i:is) = getCode state
     state = (global, local)
 
-makeTask :: Addr -> PgmLocalState
-makeTask addr = ([Eval], stkOfList [addr] 0, stkOfList [] 0, [], 0, [], -1, "")
+makeTask :: GmLocalId -> Addr -> PgmLocalState
+makeTask lid addr = ([Eval], stkOfList [addr] 0, stkOfList [] 0, [], 0, [], -1, "")
 
 tick :: PgmLocalState -> PgmLocalState
 tick (i, stack, dump, vstack, clock, locks, wait, lstr) = (i, stack, dump, vstack, clock + 1, locks, wait, lstr)
@@ -629,7 +639,7 @@ builtInDyadic =
 
 compile :: CoreProgram -> PgmState
 compile program =
-  (([], heap, globals, [], []),
+  (([], heap, globals, [], [], 0),
    [initialTask addr])
   where (heap, globals) = buildInitialHeap program
         addr            = aLookup globals "main" (error "main undefined")
@@ -1366,7 +1376,7 @@ check expect prog
   where
     states = take limit . eval . compile . parse $ prog
     limit = 1000000
-    ((out, _heap, _globals, _sparks, _stats), _lo) = last states
+    ((out, _heap, _globals, _sparks, _stats, _lastId), _lo) = last states
 
     showProg word =
       zipWith (++)
