@@ -477,6 +477,7 @@ unwind state =
   where (a, as) = stkPop $ getStack state
         heap    = getHeap state
         dump    = getDump state
+        myId    = getLocalId state
 
         wa = getWait state
         setWaiting st
@@ -491,7 +492,9 @@ unwind state =
           | otherwise         = putCode i' $ putStack (stkPush a s') $ putDump dump' $ state {- rule 3.22-} {- TODO: save maxDepth of as -}
             where ((i',s'), dump') = stkPop dump
         newState (NAp{nodeCar=a1}) = putCode [Unwind] (setRunning $ lock a (putStack (a1<:>a<:>as) state))  {- rule 5.2 -}  {- exercise 5.9 -}
-        newState (NLAp{})          = putCode [Unwind] (setWaiting   state)                                  {- wait NLAp -}  {- exercise 5.9 -}
+        newState (NLAp{nodeLockId=lid, nodeCar=a1})
+          | lid == myId            = putCode [Unwind] (putStack (a1<:>a<:>as) state)  {- self locking node -}
+          | otherwise              = putCode [Unwind] (setWaiting   state)            {- wait NLAp -}  {- exercise 5.9 -}
         newState (NGlobal{nodeArity=n, nodeCode=c})
           | n == 0            =  putCode c $ lock a (setRunning state)  {- rule 5.3, exercise 5.9 -}
           | k < n             =  putCode i $ putStack (stkPush ak s) $ putDump dump' state  {- rule 3.29 -}  {- exercise 3.29 -}
