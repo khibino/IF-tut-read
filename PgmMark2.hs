@@ -494,6 +494,7 @@ unwind state =
         newState (NAp{nodeCar=a1}) = putCode [Unwind] (setRunning $ lock a (putStack (a1<:>a<:>as) state))  {- rule 5.2 -}  {- exercise 5.9 -}
         newState (NLAp{nodeLockId=lid, nodeCar=a1})
           | lid == myId            = putCode [Unwind] (putStack (a1<:>a<:>as) state)  {- self locking node -}
+          | myId == 0              = putCode [Unwind] (putStack (a1<:>a<:>as) state)  {- ignore locks for main thread -}
           | otherwise              = putCode [Unwind] (setWaiting   state)            {- wait NLAp -}  {- exercise 5.9 -}
         newState (NGlobal{nodeArity=n, nodeCode=c})
           | n == 0            =  putCode c $ lock a (setRunning state)  {- rule 5.3, exercise 5.9 -}
