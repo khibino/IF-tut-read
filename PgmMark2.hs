@@ -1135,12 +1135,13 @@ showNode s a node   = case node of
                            , iInterleave (iStr ", ") (map showAddr as), iStr "]" ]
   NgNode t n      ->  iConcat [ iStr "NgNode", iNum t, iStr " ", iNum n ]
   {- exercise 5.8 -}
-  NLAp lid a1 a2  ->  iConcat
-                      [ iStr "*Ap ", iStr (showLid lid)
-                      , iStr " ",    showAddr a1
-                      , iStr " ",    showAddr a2 ]
-  NLGlobal lid _ _ ->  iConcat [iStr "*Global ", iStr (showLid lid), iStr " ", iStr v]
+  NLAp{}          ->  iConcat
+                      [ iStr "*Ap ", iStr (showLid $ nodeLockId node)
+                      , iStr " ",    showAddr $ nodeCar node
+                      , iStr " ",    showAddr $ nodeCdr node ]
+  NLGlobal{}      ->  iConcat [iStr "*Global ", iStr (showLid lid), iStr " ", iStr v]
     where v = head [n | (n,b) <- getGlobals s, a == b]
+          lid = nodeLockId node
   where showLid lid = "<" ++ (show lid) ++ ">"
 
 {-
