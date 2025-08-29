@@ -544,9 +544,9 @@ unlock addr state = newState (hLookup heap addr)
   where heap = getHeap state
         appendLog = (++ "unlock: " ++ iDisplay (showNodeA state addr) ++ "\n")
         decLocks st = putLocks [a | a <- getLocks st, a /= addr] $ putLog (appendLog $ getLog st) st
-        newState (NLAp _ a1 a2)      = unlock a1 (putHeap (hUpdate heap addr (NAp a1 a2)) $ decLocks state)
-        newState (NLGlobal _ n c)    = putHeap (hUpdate heap addr (NGlobal n c))          $ decLocks state
-        newState  _node            = state
+        newState (NLAp{nodeCar=a1, nodeCdr=a2})       = unlock a1 (putHeap (hUpdate heap addr (NAp a1 a2)) $ decLocks state)
+        newState (NLGlobal{nodeArity=n, nodeCode=c})  = putHeap (hUpdate heap addr (NGlobal n c))          $ decLocks state
+        newState  _node                               = state
 
 -----
 
