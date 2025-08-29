@@ -223,13 +223,13 @@ putHeap heap' ((out, _heap, globals, sparks, stats, lastId), lo) =
 
 data Node
   = NNum Int             -- Numbers
-  | NAp Addr Addr        -- Applications
-  | NGlobal Int GmCode   -- Globals
+  | NAp{ nodeCar :: Addr, nodeCdr :: Addr }          -- Applications
+  | NGlobal{ nodeArity :: Int, nodeCode :: GmCode }  -- Globals
   | NInd Addr            -- Indirections
   | NConstr Int [Addr]
   | NgNode Int Int
-  | NLAp GmLocalId Addr Addr       -- Locked Applications
-  | NLGlobal GmLocalId Int GmCode  -- Locked Globals
+  | NLAp{ nodeLockId :: GmLocalId, nodeCar :: Addr, nodeCdr :: Addr }          -- Locked Applications
+  | NLGlobal{ nodeLockId :: GmLocalId, nodeArity :: Int, nodeCode :: GmCode }  -- Locked Globals
   deriving Show
 
 instance Eq Node
