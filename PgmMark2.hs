@@ -306,6 +306,43 @@ putLastLocalId lastId' ((out, heap, globals, sparks, stats, _lastId), lo) =
 
 ---
 
+cyclicLocks
+  :: PgmState
+  -> a -> ([Addr] -> [GmLocalId] -> a) -> [a]
+cyclicLocks state@(_g, locals) n j = [localCyclicLocks state lo n j | lo <- locals]
+
+localCyclicLocks
+  :: PgmState -> PgmLocalState
+  -> a -> ([Addr] -> [GmLocalId] -> a) -> a
+localCyclicLocks state lo0 n j = localCyclicLocksRec state n j lo0 [] []
+
+localCyclicLocksRec
+  :: PgmState -> a -> ([Addr] -> [GmLocalId] -> a)
+  -> PgmLocalState -> [Addr] -> [GmLocalId]
+  -> a
+localCyclicLocksRec state@(g, locals) n j = recursive
+  where
+    recursive lo0 as ids
+      | wa < 0         =  n
+      | wa `elem` as   =  j as ids
+      | otherwise  = case wnode of
+          NLAp{}        ->  next
+          NLGlobal{}    ->  next
+          _             ->  error $ "localCyclicLocks: inconsistent, waiting not locked " ++ show wnode
+      where
+        lstate = (g, lo0)
+        li = getLocalId lstate
+        wa = getWait lstate
+        --
+        wnode = hLookup (getHeap state) wa
+        localFromId i =
+          case find (\lo -> getLocalId (g, lo) == i) locals of
+            Just lo  -> lo
+            Nothing  -> error $ "localCyclicLocks: task not found: " ++ show i
+        next = recursive (localFromId $ nodeLockId wnode) (wa:as) (li:ids)
+
+---
+
 -- The evaluator
 
 eval :: PgmState -> [PgmState]
