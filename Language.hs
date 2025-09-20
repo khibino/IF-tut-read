@@ -116,18 +116,18 @@ binops = [ ("*", (5, L)), ("/", (5, N))
          [ ("&&", (2, L))
          , ("||", (1, L)) ]
 
-pprExpr :: (Int, Fixity) -> CoreExpr -> IseqRep
-pprExpr _ (EVar v) = iStr v
-pprExpr _ (ENum n) = iStr $ show n
-pprExpr _ (EConstr tn a)
+pprExpr :: (a -> IseqRep) -> (Int, Fixity) -> Expr a -> IseqRep
+pprExpr _ _ (EVar v) = iStr v
+pprExpr _ _ (ENum n) = iStr $ show n
+pprExpr _ _ (EConstr tn a)
   = iConcat [iStr "Pack{", iStr (show tn), iStr ",", iStr (show a), iStr "}"]
-pprExpr (cpr, cas) (EAp (EAp (EVar op) e1) e2)
+pprExpr toRep (cpr, cas) (EAp (EAp (EVar op) e1) e2)
   | Just (f@(p, a)) <- op `lookup` binops
   , let unparened =
           case a of
-          L -> iConcat [pprExpr f e1, iStr " ", iStr op, iStr " ", pprExpr (p, N) e2]
-          R -> iConcat [pprExpr (p, N) e1, iStr " ", iStr op, iStr " ", pprExpr f e2]
-          N -> iConcat [pprExpr f e1, iStr " ", iStr op, iStr " ", pprExpr f e2]
+          L -> iConcat [pprExpr toRep f e1, iStr " ", iStr op, iStr " ", pprExpr toRep (p, N) e2]
+          R -> iConcat [pprExpr toRep (p, N) e1, iStr " ", iStr op, iStr " ", pprExpr toRep f e2]
+          N -> iConcat [pprExpr toRep f e1, iStr " ", iStr op, iStr " ", pprExpr toRep f e2]
         parened = iConcat [iStr "(", unparened, iStr ")"]
         result
           | p >  cpr                           =  unparened
@@ -136,49 +136,49 @@ pprExpr (cpr, cas) (EAp (EAp (EVar op) e1) e2)
           | p == cpr  {-cas /= a-}             =  parened
           | {-p < cpr-} otherwise              =  parened
   = result
-pprExpr _ (EAp e1 e2)
-  = iConcat [pprExpr (6, L) e1, iStr " ", pprExpr (6, L) e2]
-pprExpr _ (ELet isrec defns expr)
+pprExpr toRep _ (EAp e1 e2)
+  = iConcat [pprExpr toRep (6, L) e1, iStr " ", pprExpr toRep (6, L) e2]
+pprExpr toRep _ (ELet isrec defns expr)
   = iIndent $
     iConcat [ iStr keyword, iNewline
-            , iStr "  ",iIndent (pprDefns defns),iNewline
-            , iStr "in ",pprExpr (0, N) expr]
+            , iStr "  ",iIndent (pprDefns toRep defns),iNewline
+            , iStr "in ",pprExpr toRep (0, N) expr]
     where
     keyword | not isrec = "let"
             | isrec = "letrec"
-pprExpr _ (ECase e as)
-  = iConcat [ iStr "case", iStr " ", iIndent $ pprExpr (0, N) e, iStr " of " `iAppend` iNewline
+pprExpr toRep _ (ECase e as)
+  = iConcat [ iStr "case", iStr " ", iIndent $ pprExpr toRep (0, N) e, iStr " of " `iAppend` iNewline
             , iStr "    ", iIndent $ iInterleave (iStr " ;" `iAppend` iNewline) $ map pprAlter as
             ]
     where
     pprAlter (tn, ns, ae)
-      = iConcat [ iInterleave (iStr " ") $ iStr ("<" ++ show tn ++ ">") : map iStr ns
-                , iStr " -> ", pprExpr (0, N) ae
+      = iConcat [ iInterleave (iStr " ") $ iStr ("<" ++ show tn ++ ">") : map toRep ns
+                , iStr " -> ", pprExpr toRep (0, N) ae
                 ]
-pprExpr _ (ELam ns e)
-  = iConcat $ [iInterleave (iStr " ") $ map iStr $ "\\" : ns, iStr " . ", pprExpr (0, N) e]
+pprExpr toRep _ (ELam ns e)
+  = iConcat $ [iInterleave (iStr " ") $ iStr "\\" : map toRep ns, iStr " . ", pprExpr toRep (0, N) e]
 
-pprExpr1 :: CoreExpr -> IseqRep
-pprExpr1 = pprExpr (0, N)
+pprExpr1 :: (a -> IseqRep) -> Expr a -> IseqRep
+pprExpr1 toRep = pprExpr toRep (0, N)
 
-pprAExpr :: CoreExpr -> IseqRep
-pprAExpr e
-  | isAtomicExpr e = pprExpr (0, N) e
-  | otherwise = iStr "(" `iAppend` pprExpr (0, N) e `iAppend` iStr ")"
+pprAExpr :: (a -> IseqRep) -> Expr a -> IseqRep
+pprAExpr toRep e
+  | isAtomicExpr e = pprExpr toRep (0, N) e
+  | otherwise = iStr "(" `iAppend` pprExpr toRep (0, N) e `iAppend` iStr ")"
 
-pprDefns :: [(Name, CoreExpr)] -> IseqRep
-pprDefns defns = iInterleave sep (map pprDefn defns)
+pprDefns :: (a -> IseqRep) -> [(a, Expr a)] -> IseqRep
+pprDefns toRep defns = iInterleave sep (map (pprDefn toRep) defns)
                  where
                  sep = iConcat [ iStr ";", iNewline ]
 
-pprDefn :: (Name, CoreExpr) -> IseqRep
-pprDefn (name, expr)
-  = iConcat [ iStr name, iStr " = ", iIndent (pprExpr (0, N) expr) ]
+pprDefn :: (a -> IseqRep) -> (a, Expr a) -> IseqRep
+pprDefn toRep (name, expr)
+  = iConcat [ toRep name, iStr " = ", iIndent (pprExpr toRep (0, N) expr) ]
 
-pprScDefn :: CoreScDefn -> IseqRep
-pprScDefn (name, ns, e)
-  = iInterleave (iStr " ") (map iStr $ name : ns) `iAppend`
-    iStr " = " `iAppend` iIndent (pprExpr (0, N) e) --  `iAppend` iNewline
+pprScDefn :: (a -> IseqRep) -> ScDefn a -> IseqRep
+pprScDefn toRep (name, ns, e)
+  = iInterleave (iStr " ") (iStr name : map toRep ns) `iAppend`
+    iStr " = " `iAppend` iIndent (pprExpr toRep (0, N) e) --  `iAppend` iNewline
 
 iInterleave :: Iseq a => a -> [a] -> a
 iInterleave sep = irec
@@ -190,11 +190,18 @@ iInterleave sep = irec
 iConcat :: Iseq a => [a] -> a
 iConcat = foldr iAppend iNil
 
-pprint :: CoreProgram -> String
-pprint prog = iDisplay (pprProgram prog)
+-- exercise 6.1 - generalized pprint
+pprintGen
+  :: (a -> IseqRep)
+  -> Program a
+  -> String
+pprintGen toRep prog = iDisplay (pprProgram toRep prog)
 
-pprProgram :: CoreProgram -> IseqRep
-pprProgram = iInterleave (iStr " ;" `iAppend` iNewline) . map pprScDefn
+pprint :: CoreProgram -> String
+pprint prog = pprintGen iStr prog
+
+pprProgram :: (a -> IseqRep) -> Program a -> IseqRep
+pprProgram toRep = iInterleave (iStr " ;" `iAppend` iNewline) . map (pprScDefn toRep)
 
 data IseqRep
    = INil
