@@ -23,6 +23,23 @@ type CoreExpr = Expr Name
 
 type Name = String
 
+type AnnExpr a b = (b, AnnExpr' a b)
+
+data AnnExpr' a b
+   = AVar Name                         -- ^ Variables
+   | ANum Int                          -- ^ Numbers
+   | AConstr Int Int                   -- ^ Constructor tag arity
+   | AAp (AnnExpr a b) (AnnExpr a b)   -- ^ Applications
+   | ALet                              -- ^ Let(rec) expressions
+       IsRec                           -- ^   boolean with True = recursive,
+       [(a, AnnExpr a b)]              -- ^   Definitions
+       (AnnExpr a b)                   -- ^   Boy of let(rec)
+   | ACase                             -- ^ Case expression
+       (AnnExpr a b)                   -- ^   Expression to scrutinise
+       [AnnAlt a b]                    -- ^   Alternatives
+   | ALam [a] (AnnExpr a b)            -- ^ Lambda abstraction
+   deriving (Eq, Show)
+
 type IsRec = Bool
 -- recursive, nonRecursive :: IsRec
 -- recursive    = True
@@ -37,6 +54,8 @@ rhssOf defns =  [rhs | (_name, rhs) <- defns]
 type Alter a = (Int, [a], Expr a)
 type CoreAlt = Alter Name
 
+type AnnAlt a b = (Int, [a], AnnExpr a b)
+
 isAtomicExpr :: Expr a -> Bool
 isAtomicExpr (EVar _v) = True
 isAtomicExpr (ENum _n) = True
@@ -47,6 +66,10 @@ type CoreProgram = Program Name
 
 type ScDefn a = (Name, [a], Expr a)
 type CoreScDefn = ScDefn Name
+
+type AnnProgram a b = [(Name, [a], AnnExpr a b)]
+
+type AnnDefn a b = (a, AnnExpr a b)
 
 sample1 :: CoreProgram
 sample1 =
