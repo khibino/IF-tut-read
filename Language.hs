@@ -61,14 +61,20 @@ isAtomicExpr (EVar _v) = True
 isAtomicExpr (ENum _n) = True
 isAtomicExpr _e        = False
 
+isAnnAtomicExpr :: AnnExpr a b -> Bool
+isAnnAtomicExpr (_, AVar _v) = True
+isAnnAtomicExpr (_, ANum _n) = True
+isAnnAtomicExpr _e           = False
+
 type Program a = [ScDefn a]
 type CoreProgram = Program Name
 
 type ScDefn a = (Name, [a], Expr a)
 type CoreScDefn = ScDefn Name
 
-type AnnProgram a b = [(Name, [a], AnnExpr a b)]
+type AnnProgram a b = [AnnScDefn a b]
 
+type AnnScDefn a b = (Name, [a], AnnExpr a b)
 type AnnDefn a b = (a, AnnExpr a b)
 
 sample1 :: CoreProgram
@@ -181,16 +187,75 @@ pprExpr toRep _ (ECase e as)
 pprExpr toRep _ (ELam ns e)
   = iConcat $ [iInterleave (iStr " ") $ iStr "\\" : map toRep ns, iStr " . ", pprExpr toRep (0, N) e]
 
+ppA :: (b -> IseqRep) -> b -> [IseqRep] -> IseqRep
+ppA ppAnn an xs = iConcat $ [iStr "⦃", ppAnn an, iStr " "] ++ xs ++ [iStr "⦄"]
+
+ppaExpr :: (a -> IseqRep) -> (b -> IseqRep) -> (Int, Fixity) -> AnnExpr a b -> IseqRep
+ppaExpr _ ppAnn _ (ann, AVar v) = ppA ppAnn ann [iStr v]
+ppaExpr _ ppAnn _ (ann, ANum n) = ppA ppAnn ann [iStr (show n)]
+ppaExpr _ ppAnn _ (ann, AConstr tn a)
+  = ppA ppAnn ann [iStr "Pack{", iStr (show tn), iStr ",", iStr (show a), iStr "}"]
+ppaExpr ppName ppAnn (cpr, cas) (ann2, AAp (ann1, AAp (ann0, AVar op) e1) e2)
+  | Just (f@(p, a)) <- op `lookup` binops
+  , let unparened =
+          case a of
+          L -> pAn ann2 [pAn ann1 [ppaExpr ppName ppAnn f e1, iStr " ", pAn ann0 [iStr op]], iStr " ", ppaExpr ppName ppAnn (p, N) e2]
+          R -> pAn ann2 [pAn ann1 [ppaExpr ppName ppAnn (p, N) e1, iStr " ", pAn ann0 [iStr op]], iStr " ", ppaExpr ppName ppAnn f e2]
+          N -> pAn ann2 [pAn ann1 [ppaExpr ppName ppAnn f e1, iStr " ", pAn ann0 [iStr op]], iStr " ", ppaExpr ppName ppAnn f e2]
+        parened = iConcat [iStr "(", unparened, iStr ")"]
+        result
+          | p >  cpr                           =  unparened
+          | p == cpr && cas == a && cas /= N   =  unparened
+          | p == cpr && cas == a  {-cas == N-} =  parened
+          | p == cpr  {-cas /= a-}             =  parened
+          | {-p < cpr-} otherwise              =  parened
+        pAn an xs = ppA ppAnn an xs
+  = result
+ppaExpr ppName ppAnn _ (ann, AAp e1 e2)
+  = ppA ppAnn ann [ppaExpr ppName ppAnn (6, L) e1, iStr " ", ppaExpr ppName ppAnn (6, L) e2]
+ppaExpr ppName ppAnn _ (ann, ALet isrec defns expr)
+  = iIndent $
+    ppA ppAnn ann [ iStr keyword, iNewline
+                  , iStr "  ",iIndent (ppaDefns ppName ppAnn defns),iNewline
+                  , iStr "in ",ppaExpr ppName ppAnn (0, N) expr]
+    where
+    keyword | not isrec = "let"
+            | isrec = "letrec"
+ppaExpr ppName ppAnn _ (ann, ACase e as)
+  = ppA ppAnn ann [ iStr "case", iStr " ", iIndent $ ppaExpr ppName ppAnn (0, N) e, iStr " of " `iAppend` iNewline
+                  , iStr "    ", iIndent $ iInterleave (iStr " ;" `iAppend` iNewline) $ map ppaAlter as
+                  ]
+    where
+    ppaAlter (tn, ns, ae)
+      = iConcat [ iInterleave (iStr " ") $ iStr ("<" ++ show tn ++ ">") : map ppName ns
+                , iStr " -> ", ppaExpr ppName ppAnn (0, N) ae
+                ]
+ppaExpr ppName ppAnn _ (ann, ALam ns e)
+  = ppA ppAnn ann [iInterleave (iStr " ") $ iStr "\\" : map ppName ns, iStr " . ", ppaExpr ppName ppAnn (0, N) e]
+
 pprExpr1 :: (a -> IseqRep) -> Expr a -> IseqRep
 pprExpr1 toRep = pprExpr toRep (0, N)
+
+ppaExpr1 :: (a -> IseqRep) -> (b -> IseqRep) -> AnnExpr a b -> IseqRep
+ppaExpr1 ppName ppAnn = ppaExpr ppName ppAnn (0, N)
 
 pprAExpr :: (a -> IseqRep) -> Expr a -> IseqRep
 pprAExpr toRep e
   | isAtomicExpr e = pprExpr toRep (0, N) e
   | otherwise = iStr "(" `iAppend` pprExpr toRep (0, N) e `iAppend` iStr ")"
 
+ppaAExpr :: (a -> IseqRep) -> (b -> IseqRep) -> AnnExpr a b -> IseqRep
+ppaAExpr ppName ppAnn e
+  | isAnnAtomicExpr e = ppaExpr ppName ppAnn (0, N) e
+  | otherwise = iStr "(" `iAppend` ppaExpr ppName ppAnn (0, N) e `iAppend` iStr ")"
+
 pprDefns :: (a -> IseqRep) -> [(a, Expr a)] -> IseqRep
 pprDefns toRep defns = iInterleave sep (map (pprDefn toRep) defns)
+                 where
+                 sep = iConcat [ iStr ";", iNewline ]
+
+ppaDefns :: (a -> IseqRep) -> (b -> IseqRep) -> [(a, AnnExpr a b)] -> IseqRep
+ppaDefns ppName ppAnn defns = iInterleave sep (map (ppaDefn ppName ppAnn) defns)
                  where
                  sep = iConcat [ iStr ";", iNewline ]
 
@@ -198,10 +263,19 @@ pprDefn :: (a -> IseqRep) -> (a, Expr a) -> IseqRep
 pprDefn toRep (name, expr)
   = iConcat [ toRep name, iStr " = ", iIndent (pprExpr toRep (0, N) expr) ]
 
+ppaDefn :: (a -> IseqRep) -> (b -> IseqRep) -> (a, AnnExpr a b) -> IseqRep
+ppaDefn ppName ppAnn (name, expr)
+  = iConcat [ ppName name, iStr " = ", iIndent (ppaExpr ppName ppAnn (0, N) expr) ]
+
 pprScDefn :: (a -> IseqRep) -> ScDefn a -> IseqRep
 pprScDefn toRep (name, ns, e)
   = iInterleave (iStr " ") (iStr name : map toRep ns) `iAppend`
     iStr " = " `iAppend` iIndent (pprExpr toRep (0, N) e) --  `iAppend` iNewline
+
+ppaScDefn :: (a -> IseqRep) -> (b -> IseqRep) -> AnnScDefn a b -> IseqRep
+ppaScDefn ppName ppAnn (name, ns, e)
+  = iInterleave (iStr " ") (iStr name : map ppName ns) `iAppend`
+    iStr " = " `iAppend` iIndent (ppaExpr ppName ppAnn (0, N) e) --  `iAppend` iNewline
 
 iInterleave :: Iseq a => a -> [a] -> a
 iInterleave sep = irec
@@ -220,11 +294,21 @@ pprintGen
   -> String
 pprintGen toRep prog = iDisplay (pprProgram toRep prog)
 
+pprintAnn
+  :: (a -> IseqRep)
+  -> (b -> IseqRep)
+  -> AnnProgram a b
+  -> String
+pprintAnn ppName ppAnn prog = iDisplay (ppaProgram ppName ppAnn prog)
+
 pprint :: CoreProgram -> String
 pprint prog = pprintGen iStr prog
 
 pprProgram :: (a -> IseqRep) -> Program a -> IseqRep
 pprProgram toRep = iInterleave (iStr " ;" `iAppend` iNewline) . map (pprScDefn toRep)
+
+ppaProgram :: (a -> IseqRep) -> (b -> IseqRep) -> AnnProgram a b -> IseqRep
+ppaProgram ppName ppAnn = iInterleave (iStr " ;" `iAppend` iNewline) . map (ppaScDefn ppName ppAnn)
 
 data IseqRep
    = INil
