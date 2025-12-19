@@ -63,8 +63,39 @@ freeVarsOf_alt (_tag, args, rhs) =
 
 -----
 
+recursive, nonRecursive :: IsRec
+recursive     = True
+nonRecursive  = False
+
 abstract :: AnnProgram Name (Set Name) -> CoreProgram
-abstract = _
+abstract prog =
+  [ (sc_name, args, abstract_e rhs)
+  | (sc_name, args, rhs) <- prog
+  ]
+
+abstract_e :: AnnExpr Name (Set Name) -> CoreExpr
+
+abstract_e (_free, AVar v)     = EVar v
+abstract_e (_free, ANum k)     = ENum k
+
+abstract_e (_free, AAp e1 e2)  = EAp (abstract_e e1) (abstract_e e2)
+
+abstract_e (_free, ALet is_rec defns body) =
+  ELet is_rec [ (name, abstract_e lbody) | (name, lbody) <- defns ] (abstract_e body)
+
+abstract_e ( free, ALam args body) =
+  foldl EAp sc (map EVar fvList)
+  where fvList = Set.toList free
+        sc = ELet nonRecursive [("sc", sc_rhs)] (EVar "sc")
+        sc_rhs = ELam (fvList ++ args) (abstract_e body)
+
+abstract_e (_free, AConstr _t _a) = error "abstract_e: no case for Constr"
+abstract_e ( free, ACase e alts) = abstract_case free e alts
+
+abstract_case :: Set Name -> AnnExpr a b -> [AnnAlt a b] -> CoreExpr
+abstract_case _free _e _alts = error "abstract_case: not yet written"
+
+-----
 
 rename :: CoreProgram -> CoreProgram
 rename = _
