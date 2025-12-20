@@ -53,7 +53,10 @@ freeVars_e  lv (ECase e alts) = freeVars_case lv e alts
 freeVars_e _lv (EConstr _t _a) = error "freeVars_e: no case for constructors"
 
 freeVars_case :: Set Name -> CoreExpr -> [CoreAlt] -> AnnExpr Name (Set Name)
-freeVars_case _lv _e _alts = error "freeVars_case: not yet written"
+freeVars_case  lv  e  alts = (fvset, ACase e' alts')
+  where fvset = Set.unions (freeVarsOf e' : map freeVarsOf_alt alts')
+        e'     = freeVars_e lv e
+        alts'  = [(tag, args, freeVars_e lv rhs) | (tag, args, rhs) <- alts]
 
 freeVarsOf :: AnnExpr Name (Set Name) -> Set Name
 freeVarsOf (free_vars, _expr) = free_vars
@@ -61,6 +64,16 @@ freeVarsOf (free_vars, _expr) = free_vars
 freeVarsOf_alt :: AnnAlt Name (Set Name) -> Set Name
 freeVarsOf_alt (_tag, args, rhs) =
   Set.difference (freeVarsOf rhs) (Set.fromList args)
+
+pprintFreeVars :: AnnProgram Name (Set Name) -> Name
+pprintFreeVars = pprintAnn iStr (iStr . ("{" ++) . (++ "}") . intercalate "," . Set.toList)
+
+{- |
+>>> putStrLn $ pprintFreeVars $ freeVars $ parse "f x = \\ y . case x of <1> g -> g y ; <2> g h -> h (g y)"
+f x = ⦃{x} \ y . ⦃{x,y} case ⦃{x} x⦄ of
+          <1> g -> ⦃{y} ⦃{} g⦄ ⦃{y} y⦄⦄ ;
+          <2> g h -> ⦃{y} ⦃{} h⦄ ⦃{y} ⦃{} g⦄ ⦃{y} y⦄⦄⦄⦄⦄
+ -}
 
 -----
 
