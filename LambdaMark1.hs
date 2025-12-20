@@ -170,7 +170,52 @@ rename_case _env _ns _e _alts = error "rename_case: not yet written"
 -----
 
 collectSCs :: CoreProgram -> CoreProgram
-collectSCs = _
+collectSCs prog = concat (map collect_one_sc prog)
+  where collect_one_sc (sc_name, args, rhs) =
+          (sc_name, args, rhs') : scs
+          where (scs, rhs') = collectSCs_e rhs
+
+collectSCs_e :: CoreExpr -> ([CoreScDefn], CoreExpr)
+
+collectSCs_e (ENum k)     = ([], ENum k)
+collectSCs_e (EVar v)     = ([], EVar v)
+
+collectSCs_e (EAp e1 e2)  = (scs1 ++ scs2, EAp e1' e2')
+  where (scs1, e1') = collectSCs_e e1
+        (scs2, e2') = collectSCs_e e2
+
+collectSCs_e (ELam args body)  = (scs, ELam args body')
+  where (scs, body') = collectSCs_e body
+
+collectSCs_e (EConstr t a) = ([], EConstr t a)
+
+collectSCs_e (ECase e alts)    = (scs_e ++ scs_alts, ECase e' alts')
+  where (scs_e, e') = collectSCs_e e
+        (scs_alts, alts') = mapAccumL collectSCs_alt [] alts
+        collectSCs_alt scs (tag, args, rhs) = (scs ++ scs_rhs, (tag, args, rhs'))
+          where (scs_rhs, rhs') = collectSCs_e rhs
+
+collectSCs_e (ELet is_rec defns body) =
+  (rhss_scs ++ body_scs ++ local_scs, mkELet is_rec non_scs' body')
+  where (rhss_scs, defns') = mapAccumL collectSCs_d [] defns
+
+        scs'       = [(name, rhs) | (name, rhs) <- defns', isELam rhs]
+        non_scs'   = [(name, rhs) | (name, rhs) <- defns', not (isELam rhs)]
+        local_scs  = [(name, args, body1) | (name, ELam args body1) <- scs']
+
+        (body_scs, body') = collectSCs_e body
+
+        collectSCs_d scs (name, rhs) = (scs ++ rhs_scs, (name, rhs'))
+          where (rhs_scs, rhs') = collectSCs_e rhs
+
+isELam :: Expr a -> Bool
+isELam ELam {}  = True
+isELam _ohter   = False
+
+mkELet :: IsRec -> [(a, Expr a)] -> Expr a -> Expr a
+mkELet is_rec defns body = ELet is_rec defns body
+
+-----
 
 lambdaLift :: CoreProgram -> CoreProgram
 lambdaLift = collectSCs . rename . abstract . freeVars
