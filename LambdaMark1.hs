@@ -220,5 +220,9 @@ mkELet is_rec defns body = ELet is_rec defns body
 lambdaLift :: CoreProgram -> CoreProgram
 lambdaLift = collectSCs . rename . abstract . freeVars
 
+{- |
+>>> runS "f x = let g = \\y . x*x + y in (g 3 + g 4) ; main = f 6"
+"f x_0 = let\n          g_1 = let\n                  \n                in sc_2 x_0\n        in g_1 3 + g_1 4 ;\nsc_2 x_3 y_4 = x_3 * x_3 + y_4 ;\nmain = f 6"
+ -}
 runS :: String -> String
 runS = pprint . lambdaLift . parse
