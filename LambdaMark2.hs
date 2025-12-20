@@ -106,8 +106,19 @@ abstract_e ( free, ALam args body) =
 abstract_e (_free, AConstr _t _a) = error "abstract_e: no case for Constr"
 abstract_e ( free, ACase e alts) = abstract_case free e alts
 
-abstract_case :: Set Name -> AnnExpr a b -> [AnnAlt a b] -> CoreExpr
-abstract_case _free _e _alts = error "abstract_case: not yet written"
+abstract_case :: Set Name -> AnnExpr Name (Set Name) -> [AnnAlt Name (Set Name)] -> Expr Name
+abstract_case _free  e  alts = ECase e' alts'
+  where e'     = abstract_e e
+        alts'  = [(tag, args, abstract_e alt) | (tag, args, alt) <- alts]
+
+{- |
+>>> putStrLn $ pprint $ abstract $ freeVars $ parse "f x = \\ y . case x of <1> g -> g y ; <2> g h -> h (g y)"
+f x = let
+        sc = \ x y . case x of
+                 <1> g -> g y ;
+                 <2> g h -> h (g y)
+      in sc x
+ -}
 
 -----
 
