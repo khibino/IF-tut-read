@@ -184,7 +184,9 @@ rename_case _env _ns _e _alts = error "rename_case: not yet written"
 
 collectSCs :: CoreProgram -> CoreProgram
 collectSCs prog = concat (map collect_one_sc prog)
-  where collect_one_sc (sc_name, args, rhs) =
+  where collect_one_sc (sc_name, args, ELet False [(name, ELam args' body')] body)
+          | body == EVar name = [(sc_name, args ++ args', body')] {- exercise 6.5 -}
+        collect_one_sc (sc_name, args, rhs) =
           (sc_name, args, rhs') : scs
           where (scs, rhs') = collectSCs_e rhs
 
