@@ -228,9 +228,19 @@ collectSCs_e (ELet is_rec defns body) =
         scs'       = [(name, rhs) | (name, rhs) <- defns', isELam rhs]
         non_scs'   = [(name, rhs) | (name, rhs) <- defns', not (isELam rhs)]
         local_scs  = [(name, args, body1) | (name, ELam args body1) <- scs']
+        {- scs' は local_scs からしか参照されない.
+        local_scs  = [(name, args, body1) | (name, ELam args body1) <- defns']
+        のように直接定義した方が、単純でわかりやすいかも.
+         -}
 
         (body_scs, body') = collectSCs_e body
 
+        {- exercise 6.6
+           exercise 6.5 と見つけるべきパターンは同じで、
+           abstract_e ... ALam で生成された ELet False [("sc",..)] (EVar "sc") を捕捉する.
+           ELet の binder の入れ子木を辿りながら、
+           ELet の body が EVar name に一致したときに、
+           その定義は sc としては取り出さないようにする -}
         collectSCs_d scs (name, rhs) = (scs ++ rhs_scs, (name, rhs'))
           where (rhs_scs, rhs') = collectSCs_e rhs
 
