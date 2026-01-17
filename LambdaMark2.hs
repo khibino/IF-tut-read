@@ -241,6 +241,9 @@ collectSCs_e (ELet is_rec defns body) =
            ELet の binder の入れ子木を辿りながら、
            ELet の body が EVar name に一致したときに、
            その定義は sc としては取り出さないようにする -}
+        collectSCs_d scs (name, ELet False [(name1, ELam argsA bodyA)] bodyL)
+          | bodyL == EVar name1 = (scs ++ rhs_scs, (name, ELam argsA rhs'))
+          where (rhs_scs, rhs') = collectSCs_e bodyA
         collectSCs_d scs (name, rhs) = (scs ++ rhs_scs, (name, rhs'))
           where (rhs_scs, rhs') = collectSCs_e rhs
 
