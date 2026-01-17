@@ -165,8 +165,13 @@ pprExpr toRep (cpr, cas) (EAp (EAp (EVar op) e1) e2)
           | p == cpr  {-cas /= a-}             =  parened
           | {-p < cpr-} otherwise              =  parened
   = result
-pprExpr toRep _ (EAp e1 e2)
-  = iConcat [pprExpr toRep (6, L) e1, iStr " ", pprExpr toRep (6, L) e2]
+pprExpr toRep (cpr, cas) (EAp e1 e2)
+  | cpr <  6              = unparened
+  | cpr == 6 && cas == L  = unparened
+  | otherwise             = parened
+    where
+    unparened = iConcat [pprExpr toRep (6, L) e1, iStr " ", pprExpr toRep (6, N) e2]
+    parened   = iConcat [iStr "(", unparened, iStr ")"]
 pprExpr toRep _ (ELet isrec defns expr)
   = iIndent $
     iConcat [ iStr keyword, iNewline
@@ -211,8 +216,13 @@ ppaExpr ppName ppAnn (cpr, cas) (ann2, AAp (ann1, AAp (ann0, AVar op) e1) e2)
           | {-p < cpr-} otherwise              =  parened
         pAn an xs = ppA ppAnn an xs
   = result
-ppaExpr ppName ppAnn _ (ann, AAp e1 e2)
-  = ppA ppAnn ann [ppaExpr ppName ppAnn (6, L) e1, iStr " ", ppaExpr ppName ppAnn (6, L) e2]
+ppaExpr ppName ppAnn (cpr, cas) (ann, AAp e1 e2)
+  | cpr <  6              = unparened
+  | cpr == 6 && cas == L  = unparened
+  | otherwise             = parened
+    where
+    unparened = ppA ppAnn ann [ppaExpr ppName ppAnn (6, L) e1, iStr " ", ppaExpr ppName ppAnn (6, L) e2]
+    parened   = iConcat [iStr "(", unparened, iStr ")"]
 ppaExpr ppName ppAnn _ (ann, ALet isrec defns expr)
   = iIndent $
     ppA ppAnn ann [ iStr keyword, iNewline
