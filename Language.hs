@@ -1,5 +1,6 @@
 module Language where
-import Utils
+
+import Utils ()
 
 import Prelude hiding (seq)
 import Data.Char (isDigit, isAlpha, isSpace)
@@ -179,7 +180,7 @@ pprExpr toRep _ (ELet isrec defns expr)
             , iStr "in ",pprExpr toRep (0, N) expr]
     where
     keyword | not isrec = "let"
-            | isrec = "letrec"
+            | otherwise = "letrec"  {- isrec -}
 pprExpr toRep _ (ECase e as)
   = iConcat [ iStr "case", iStr " ", iIndent $ pprExpr toRep (0, N) e, iStr " of " `iAppend` iNewline
             , iStr "    ", iIndent $ iInterleave (iStr " ;" `iAppend` iNewline) $ map pprAlter as
@@ -230,7 +231,7 @@ ppaExpr ppName ppAnn _ (ann, ALet isrec defns expr)
                   , iStr "in ",ppaExpr ppName ppAnn (0, N) expr]
     where
     keyword | not isrec = "let"
-            | isrec = "letrec"
+            | otherwise = "letrec"  {- isrec -}
 ppaExpr ppName ppAnn _ (ann, ACase e as)
   = ppA ppAnn ann [ iStr "case", iStr " ", iIndent $ ppaExpr ppName ppAnn (0, N) e, iStr " of " `iAppend` iNewline
                   , iStr "    ", iIndent $ iInterleave (iStr " ;" `iAppend` iNewline) $ map ppaAlter as
@@ -602,9 +603,9 @@ pNum = read |$| pSat (all isDigit)
 runParser :: Parser a -> [Token] -> a
 runParser parser = take_first_parse . parser
   where
-    take_first_parse ((prog, []) : others) = prog
-    take_first_parse (parse      : others) = take_first_parse others
-    take_first_parse other                 = error "Syntax error"
+    take_first_parse ((prog, []) : _others) = prog
+    take_first_parse (_parse     :  others) = take_first_parse others
+    take_first_parse _other                 = error "Syntax error"
 
 syntax :: [Token] -> CoreProgram
 syntax = runParser pProgram
@@ -816,25 +817,25 @@ examples =
 
     -- u = 5 / (3 * x * (7 - (2 + x + 1)))
     ("u", [],
-     ENum 5 |/|
-     (ENum 3 |*| EVar "x" |*| (ENum 7 |-| (ENum 2 |+| EVar "x" |+| ENum 1)))),
+     ENum 5 !/!
+     (ENum 3 !*! EVar "x" !*! (ENum 7 !-! (ENum 2 !+! EVar "x" !+! ENum 1)))),
 
     ("v", [],
-     (ENum 1 |+| ENum 2) |+| ENum 3),
+     (ENum 1 !+! ENum 2) !+! ENum 3),
 
     ("x", [],
-     ENum 1 |+| (ENum 2 |+| ENum 3))
+     ENum 1 !+! (ENum 2 !+! ENum 3))
   ]
   where
     ap2 f x y = EAp (EAp f x) y
-    (|*|) = ap2 (EVar "*")
-    (|/|) = ap2 (EVar "/")
-    (|+|) = ap2 (EVar "+")
-    (|-|) = ap2 (EVar "-")
-    infixr 5 |*|
-    infix  5 |/|
-    infixr 4 |+|
-    infix  4 |-|
+    (!*!) = ap2 (EVar "*")
+    (!/!) = ap2 (EVar "/")
+    (!+!) = ap2 (EVar "+")
+    (!-!) = ap2 (EVar "-")
+    infixr 5 !*!
+    infix  5 !/!
+    infixr 4 !+!
+    infix  4 !-!
 
 
 ---------- old codes -----------
@@ -843,6 +844,8 @@ pprExprS :: CoreExpr -> String
 pprExprS (ENum n) = show n
 pprExprS (EVar v) = v
 pprExprS (EAp e1 e2) = pprExprS e1 ++ " " ++ pprAExprS e2
+
+pprExprS  e       = error $ "pprExprS: not implemented: " ++ show e
 
 pprAExprS :: CoreExpr -> String
 pprAExprS e
@@ -868,7 +871,7 @@ pprExprN (ELet isrec defns expr)
           , iStr "in ",pprExprN expr]
     where
     keyword | not isrec = "let"
-            | isrec = "letrec"
+            | otherwise = "letrec"  {- isrec -}
 pprExprN (ECase e as)
   = iConcat [ iStr "case", iStr " ", pprExprN e, iStr " of "
             , iStr "    ", iIndent $ iInterleave (iStr ";" `iAppend` iNewline) $ map pprAlter as
