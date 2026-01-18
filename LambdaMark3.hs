@@ -125,7 +125,12 @@ abstractJ_e  env (_free, ALet isrec defns body) =
     var_defns' = [(name, abstractJ_e rhs_env rhs) | (name, rhs) <- var_defns]
     body' = abstractJ_e body_env body
 
-abstractJ_e _env (_free, _expr)     = _not_yet
+{- exercise 6.7 -}
+abstractJ_e  env (_free, ACase e alts) =
+    ECase e' alts'
+  where
+    e'     = abstractJ_e env e
+    alts'  = [(tag, args, abstractJ_e env alt) | (tag, args, alt) <- alts]
 
 actualFreeList :: Assoc Name [Name] -> Set Name -> [Name]
 actualFreeList env free = Set.toList (Set.unions [ Set.fromList (aLookup env name [name]) | name <- Set.toList free])
