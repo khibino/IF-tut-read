@@ -82,7 +82,57 @@ recursive     = True
 nonRecursive  = False
 
 abstractJ :: AnnProgram Name (Set Name) -> CoreProgram
-abstractJ = _not_yet
+abstractJ prog =
+  [ (name, args, abstractJ_e [] rhs)
+  | (name, args, rhs) <- prog
+  ]
+
+abstractJ_e
+  :: Assoc Name [Name]
+  -> AnnExpr Name (Set Name)
+  -> CoreExpr
+
+abstractJ_e _env (_free, ANum n)       = ENum n
+abstractJ_e _env (_free, AConstr t a)  = EConstr t a
+abstractJ_e  env (_free, AAp e1 e2)    = EAp (abstractJ_e env e1) (abstractJ_e env e2)
+
+abstractJ_e  env (_free, AVar g)       = foldl EAp (EVar g) (map EVar (aLookup env g []))
+
+abstractJ_e  env ( free, ALam args body) =
+    foldl EAp sc (map EVar fv_list)
+  where
+    fv_list = actualFreeList env free
+    sc = ELet nonRecursive [("sc", sc_rhs)] (EVar "sc")
+    sc_rhs = ELam (fv_list ++ args) (abstractJ_e env body)
+
+abstractJ_e  env (_free, ALet isrec defns body) =
+    ELet isrec (fun_defns' ++ var_defns') body'
+  where
+    fun_defns = [(name, rhs) | (name, rhs) <- defns, isALam rhs]
+    var_defns = [(name, rhs) | (name, rhs) <- defns, not (isALam rhs)]
+    --
+    fun_names = bindersOf fun_defns
+    free_in_funs = Set.difference (Set.unions [freeVarsOf rhs | (_name, rhs) <- fun_defns]) (Set.fromList fun_names)
+    vars_to_abstract = actualFreeList env free_in_funs
+    --
+    body_env = [(fun_name, vars_to_abstract) | fun_name <- fun_names] ++ env
+    rhs_env | isrec      = body_env
+            | otherwise  = env
+    --
+    fun_defns' = [ (name, ELam (vars_to_abstract ++ args) (abstractJ_e rhs_env lbody))
+                 | (name, (_free, ALam args lbody)) <- fun_defns
+                 ]
+    var_defns' = [(name, abstractJ_e rhs_env rhs) | (name, rhs) <- var_defns]
+    body' = abstractJ_e body_env body
+
+abstractJ_e _env (_free, _expr)     = _not_yet
+
+actualFreeList :: Assoc Name [Name] -> Set Name -> [Name]
+actualFreeList env free = Set.toList (Set.unions [ Set.fromList (aLookup env name [name]) | name <- Set.toList free])
+
+isALam :: AnnExpr a b -> Bool
+isALam (_free, ALam _args _body)  = True
+isALam _other                     = False
 
 -----
 
@@ -226,10 +276,8 @@ lambdaLiftJ = collectSCs . abstractJ . freeVars . rename
 
 {- |
 >>> putStrLn $ runS "f x = let g = \\y . x*x + y in (g 3 + g 4) ; main = f 6"
-f x_0 = let
-          g_1 = sc_2 x_0
-        in g_1 3 + g_1 4 ;
-sc_2 x_3 y_4 = x_3 * x_3 + y_4 ;
+f x_0 = g_1 x_0 3 + g_1 x_0 4 ;
+g_1 x_0 y_2 = x_0 * x_0 + y_2 ;
 main = f 6
  -}
 runS :: String -> String
