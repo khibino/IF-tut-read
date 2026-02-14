@@ -4,6 +4,8 @@ module LambdaMark3 where
 import Data.List
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.Map (Map)
+import qualified Data.Map as Map
 
 import Language
 import Utils
@@ -134,6 +136,14 @@ abstractJ_e  env (_free, ACase e alts) =
 
 actualFreeList :: Assoc Name [Name] -> Set Name -> [Name]
 actualFreeList env free = Set.toList (Set.unions [ Set.fromList (aLookup env name [name]) | name <- Set.toList free])
+
+dfsRefVars
+  :: Set Name -> Name
+  -> Map Name ([Name], a)
+  -> (Set Name, [(Name, (Set Name, a))]) -- used names, SCC
+dfsRefVars used sname ps
+  | Just p@(rvs, _) <- Map.lookup sname ps  = dfsRefVars (Set.insert sname used)
+  | otherwise                              = (used, [])
 
 isALam :: AnnExpr a b -> Bool
 isALam (_free, ALam _args _body)  = True

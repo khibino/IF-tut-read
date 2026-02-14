@@ -11,7 +11,32 @@ import Utils
 -----
 
 separateLams :: CoreProgram -> CoreProgram
-separateLams = _not_yet
+separateLams prog =
+  [ (name, [], mkSepLams args (separateLams_e rhs))
+  | (name, args, rhs) <- prog
+  ]
+
+separateLams_e :: CoreExpr -> CoreExpr
+separateLams_e (EVar v)                  = EVar v
+separateLams_e (EConstr t a)             = EConstr t a
+separateLams_e (ENum n)                  = ENum n
+separateLams_e (EAp e1 e2)               = EAp (separateLams_e e1) (separateLams_e e2)
+
+separateLams_e (ECase e alts)            =
+  ECase (separateLams_e e)
+  [ (tag, args, separateLams_e e1)
+  | (tag, args, e1) <- alts
+  ]
+
+separateLams_e (ELam args body)          = mkSepLams args (separateLams_e body)
+
+separateLams_e (ELet is_rec defns body)  =
+  ELet is_rec [(name, separateLams_e rhs) | (name, rhs) <- defns] (separateLams_e body)
+
+mkSepLams :: [Name] -> CoreExpr -> CoreExpr
+mkSepLams args body = foldr mkSepLam body args where mkSepLam arg body1 = ELam [arg] body1
+
+-----
 
 type Level = Int
 addLevels :: CoreProgram -> AnnProgram (Name, Level) Level
