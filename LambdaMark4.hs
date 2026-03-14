@@ -154,8 +154,29 @@ identifyMFEs_e1 _level _e = _not_yet
 
 -----
 
-renameL :: Program (Name, a) -> Program (Name, a)
-renameL = _not_yet
+renameL :: Program (Name, Level) -> Program (Name, Level)
+renameL prog = renameGen newNamesL prog
+
+renameGen
+  :: (NameSupply -> [a] -> (NameSupply, [a], Assoc Name Name))
+  -> Program a
+  -> Program a
+renameGen new_binders prog = snd (mapAccumL rename_sc initialNameSupply prog)
+  where rename_sc ns (sc_name, args, rhs) = (ns2, (sc_name, args', rhs'))
+          where
+            (ns1, args', env) = new_binders ns args
+            (ns2, rhs') = renameGen_e new_binders env ns1 rhs
+
+renameGen_e
+  :: (NameSupply -> [a] -> (NameSupply, [a], Assoc Name Name))
+  -> Assoc Name Name
+  -> NameSupply
+  -> Expr a
+  -> (NameSupply, Expr a)
+
+renameGen_e new_binders env ns e = _not_yet
+
+-----
 
 float :: Program (Name, Level) -> CoreProgram
 float = _not_yet
@@ -296,6 +317,18 @@ newNames
 newNames ns old_names = (ns', new_names, env)
   where (ns', new_names) = getNames ns old_names
         env = zip old_names new_names
+
+newNamesL
+  :: NameSupply
+  -> [(Name, Level)]
+  -> (NameSupply, [(Name, Level)], Assoc Name Name)
+newNamesL ns old_binders = (ns', new_binders, env)
+  where
+    old_names         = [name  | ( name, _level) <- old_binders]
+    levels            = [level | (_name,  level) <- old_binders]
+    (ns', new_names)  = getNames ns old_names
+    new_binders       = zip new_names levels
+    env               = zip old_names new_names
 
 rename :: CoreProgram -> CoreProgram
 rename prog = snd (mapAccumL rename_sc initialNameSupply prog)
