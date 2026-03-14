@@ -54,6 +54,10 @@ freeToLevel_sc :: AnnScDefn Name (Set Name) -> AnnScDefn (Name, Level) Level
 freeToLevel_sc (sc_name, [], rhs) = (sc_name, [], freeToLevel_e 0 [] rhs)
 freeToLevel_sc (_scn   , as,_rhs) = error $ "freeToLevel_sc: inconsistent, sc args: " ++ show as
 
+isTerminal :: AnnExpr' a b -> Bool
+isTerminal (AAp {})  = False
+isTerminal _e        = True
+
 freeToLevel_e
   :: Level                        -- ^ Level of context
   -> Assoc Name Level             -- ^ Level of in-scope names
@@ -62,9 +66,13 @@ freeToLevel_e
 freeToLevel_e _level _env (_free, ANum k)       = (0, ANum k)
 freeToLevel_e _level  env (_free, AVar v)       = (aLookup env v 0, AVar v)
 freeToLevel_e _level _env (_free, AConstr t a)  = (0, AConstr t a)
-freeToLevel_e  level  env (_free, AAp e1 e2)    = (max (levelOf e1') (levelOf e2'), AAp e1' e2')
+freeToLevel_e  level  env (_free, AAp e1 e2)    = (mlv, AAp (nonTermLv e1') (nonTermLv e2'))
   where e1' = freeToLevel_e level env e1
         e2' = freeToLevel_e level env e2
+        mlv = max (levelOf e1') (levelOf e2')
+        nonTermLv e@(_lv, re)
+          | isTerminal re = e
+          | otherwise     = (mlv, re)
 freeToLevel_e  level  env ( free, ALam args body)  =
   (freeSetToLevel env free, ALam args' body')
   where
