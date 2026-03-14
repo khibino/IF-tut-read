@@ -97,7 +97,54 @@ levelOf (level, _e) = level
 -----
 
 identifyMFEs :: AnnProgram (Name, Level) Level -> Program (Name, Level)
-identifyMFEs = _not_yet
+identifyMFEs prog =
+  [ (sc_name, [], identifyMFEs_e 0 rhs)
+  | (sc_name, [], rhs) <- prog
+  ]
+
+notMFECandidate :: AnnExpr' a b -> Bool
+notMFECandidate (AConstr {})  = True
+notMFECandidate (ANum {})     = True
+notMFECandidate (AVar {})     = True
+notMFECandidate _ae           = False -- For now everything else is a candidate
+
+identifyMFEs_e
+  :: Level
+  -> AnnExpr (Name, Level) Level
+  -> Expr (Name, Level)
+identifyMFEs_e cxt (level, e)
+  | level == cxt || notMFECandidate e  = e'
+  | otherwise                          = transformMFE level e'
+  where e' = identifyMFEs_e1 level e
+
+transformMFE
+  :: Level
+  -> Expr (Name, Level)
+  -> Expr (Name, Level)
+transformMFE level e = ELet nonRecursive [(("v", level), e)] (EVar "v")
+
+identifyMFEs_e1
+  :: Level
+  -> AnnExpr' (Name, Level) Level
+  -> Expr (Name, Level)
+identifyMFEs_e1 _level (AConstr t a)  = EConstr t a
+identifyMFEs_e1 _level (ANum n)       = ENum n
+identifyMFEs_e1 _level (AVar v)       = EVar v
+identifyMFEs_e1  level (AAp e1 e2)    =
+  EAp (identifyMFEs_e level e1) (identifyMFEs_e level e2)
+identifyMFEs_e1 _level (ALam args body)  =
+  ELam args (identifyMFEs_e arg_level body)
+  where (_name, arg_level) = head args
+identifyMFEs_e1  level (ALet is_rec defns body)  =
+  ELet is_rec defns' body'
+  where
+    body'  = identifyMFEs_e level body
+    defns' = [ ((name, rhs_level), identifyMFEs_e rhs_level rhs)
+             | ((name, rhs_level), rhs) <- defns
+             ]
+identifyMFEs_e1 _level _e = _not_yet
+
+-----
 
 renameL :: Program (Name, a) -> Program (Name, a)
 renameL = _not_yet
@@ -373,3 +420,14 @@ runS = pprint . lambdaLift . parse
 
 runF :: String -> String
 runF = pprint . lambdaLift . fullyLazyLift . parse
+
+-----
+
+iShow :: Show a => a -> IseqRep
+iShow = iStr . show
+
+iLevel :: Level -> IseqRep
+iLevel = iShow
+
+iNL :: (Name, Level) -> IseqRep
+iNL (name, level) = iStr $ name ++ "#" ++ show level
