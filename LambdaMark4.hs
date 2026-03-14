@@ -174,7 +174,43 @@ renameGen_e
   -> Expr a
   -> (NameSupply, Expr a)
 
-renameGen_e new_binders env ns e = _not_yet
+-- exercise 6.9
+renameGen_e _new_binders  env  ns (EVar v)       = (ns, EVar (aLookup env v v))
+renameGen_e _new_binders _env  ns (EConstr t a)  = (ns, EConstr t a)
+renameGen_e _new_binders _env  ns (ENum n)       = (ns, ENum n)
+
+renameGen_e  new_binders  env  ns (EAp e1 e2)    = (ns2, EAp e1' e2')
+  where (ns1, e1') = renameGen_e new_binders env ns  e1
+        (ns2, e2') = renameGen_e new_binders env ns1 e2
+
+renameGen_e  new_binders  env  ns (ELam args body)  = (ns2, ELam args' body')
+  where (ns1, args', env') = new_binders ns args
+        (ns2, body') = renameGen_e new_binders (env' ++ env) ns1 body
+
+renameGen_e  new_binders  env  ns (ELet is_rec defns body)  =
+  (ns3, ELet is_rec (zip binders' rhss') body')
+  where (ns1, body') = renameGen_e new_binders body_env ns body
+        binders = bindersOf defns
+        (ns2, binders', env') = new_binders ns1 binders
+        body_env = env' ++ env
+        (ns3, rhss') = mapAccumL (renameGen_e new_binders rhsEnv) ns2 (rhssOf defns)
+        rhsEnv | is_rec     = body_env
+               | otherwise  = env
+
+renameGen_e  new_binders  env  ns (ECase e alts) = (ns2, ECase e' alts')
+  where (ns1, e') = renameGen_e new_binders env ns e
+        astep = renameGen_alt new_binders env
+        (ns2, alts') = mapAccumL astep ns1 alts
+
+renameGen_alt
+  :: (NameSupply -> [a] -> (NameSupply, [a], Assoc Name Name))
+  -> Assoc Name Name
+  -> NameSupply
+  -> Alter a
+  -> (NameSupply, Alter a)
+renameGen_alt new_binders env ns (tn, args, body) = (ns2, (tn, args', body'))
+  where (ns1, args', env') = new_binders ns args
+        (ns2, body') = renameGen_e new_binders (env' ++ env) ns1 body
 
 -----
 
