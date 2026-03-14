@@ -97,7 +97,20 @@ freeToLevel_e  level  env (_free, ALet is_rec defns body)  =
             | otherwise        = env
     level_rhs_env | is_rec     = [(name, 0) | name <- binders] ++ env
                   | otherwise  = env
-freeToLevel_e _level _env (_free, _) = _not_yet
+freeToLevel_e  level  env ( free, ACase e alts) =
+  (freeSetToLevel env free, ACase e' alts')
+  where e' = freeToLevel_e level env e
+        alts' = [freeToLevel_alt level env alt | alt <- alts]
+
+freeToLevel_alt
+  :: Level
+  -> Assoc Name Level
+  -> AnnAlt Name (Set Name)
+  -> AnnAlt (Name, Level) Level
+freeToLevel_alt level env (tn, args, body) = (tn, args', body')
+  where
+    body' = freeToLevel_e (level + 1) (args' ++ env) body
+    args' = [(arg, level + 1) | arg <- args]
 
 levelOf :: AnnExpr a Level -> Level
 levelOf (level, _e) = level
