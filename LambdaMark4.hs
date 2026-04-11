@@ -154,7 +154,8 @@ identifyMFEs_e1 _level _e = _not_yet
 
 -----
 
-renameL :: Program (Name, Level) -> Program (Name, Level)
+-- exercise 6.10, relax type signaure
+renameL :: Program (Name, a) -> Program (Name, a)
 renameL prog = renameGen newNamesL prog
 
 renameGen
@@ -354,10 +355,11 @@ newNames ns old_names = (ns', new_names, env)
   where (ns', new_names) = getNames ns old_names
         env = zip old_names new_names
 
+-- exercise 6.10, relax type signaure
 newNamesL
   :: NameSupply
-  -> [(Name, Level)]
-  -> (NameSupply, [(Name, Level)], Assoc Name Name)
+  -> [(Name, a)]
+  -> (NameSupply, [(Name, a)], Assoc Name Name)
 newNamesL ns old_binders = (ns', new_binders, env)
   where
     old_names         = [name  | ( name, _level) <- old_binders]
