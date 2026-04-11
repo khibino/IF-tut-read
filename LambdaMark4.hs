@@ -216,7 +216,61 @@ renameGen_alt new_binders env ns (tn, args, body) = (ns2, (tn, args', body'))
 -----
 
 float :: Program (Name, Level) -> CoreProgram
-float = _not_yet
+float prog = concat (map float_sc prog)
+
+float_sc (name, [], rhs) =
+  [(name, [], rhs')] ++ concat (map to_scs fds)
+  where
+    (fds, rhs') = float_e rhs
+    to_scs (level, is_rec, defns) = map make_sc defns
+    make_sc (name, rhs) = (name, [], rhs)
+
+type FloatedDefns = [(Level, IsRec, [(Name, Expr Name)])]
+
+float_e :: Expr (Name, Level) -> (FloatedDefns, Expr Name)
+
+float_e (EVar v)       = ([], EVar v)
+float_e (EConstr t a)  = ([], EConstr t a)
+float_e (ENum n)       = ([], ENum n)
+float_e (EAp e1 e2)    = (fd1 ++ fd2, EAp e1' e2')
+  where
+    (fd1, e1') = float_e e1
+    (fd2, e2') = float_e e2
+
+float_e (ELam args body) =
+  (fd_outer, ELam args' (install fd_this_level body'))
+  where
+    args' = [arg | (arg, _level) <- args]
+    (_first_arg, this_level) = head args
+    (fd_body, body') = float_e body
+    (fd_outer, fd_this_level) = partitionFloats this_level fd_body
+
+float_e (ELet is_rec defns body) =
+  (rhsFloatDefns ++ [thisGroup] ++ bodyFloatDefns, body')
+  where
+    (bodyFloatDefns, body') = float_e body
+    (rhsFloatDefns, defns') = mapAccumL float_defn [] defns
+    thisGroup = (thisLevel, is_rec, defns')
+    (_name, thisLevel) =  head (bindersOf defns)
+
+    float_defn floatedDefns ((name, _level), rhs) =
+      (rhsFloatDefns1 ++ floatedDefns, (name, rhs'))
+      where (rhsFloatDefns1, rhs') = float_e rhs
+
+float_e _ = _not_yet
+
+partitionFloats :: Level -> FloatedDefns -> (FloatedDefns, FloatedDefns)
+partitionFloats this_level fds =
+  (filter is_outer_level fds, filter is_this_level fds)
+  where
+    is_this_level  (level, _is_rec, _defns)  = level >= this_level
+    is_outer_level (level, _is_rec, _defns)  = level <  this_level
+
+install :: FloatedDefns -> Expr Name -> Expr Name
+install defnGroups e =
+  foldr installGroup e defnGroups
+  where
+    installGroup (_level, is_rec, defns) e1 = ELet is_rec defns e1
 
 -----
 
