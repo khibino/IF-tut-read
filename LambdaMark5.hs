@@ -171,7 +171,28 @@ identifyMFEs_e1  level (ALet is_rec defns body)  =
     defns' = [ ((name, rhs_level), identifyMFEs_e rhs_level rhs)
              | ((name, rhs_level), rhs) <- defns
              ]
-identifyMFEs_e1 _level _e = _not_yet
+identifyMFEs_e1  level (ACase e alts) = identifyMFEs_case1 level e alts
+
+identifyMFEs_case1
+  :: Level
+  -> AnnExpr (Name, Level) Level
+  -> [AnnAlt (Name, Level) Level]
+  -> Expr (Name, Level)
+identifyMFEs_case1 level e alts =
+  ECase e' [identifyMFEs_alt1 level alt | alt <- alts]
+  where e' = identifyMFEs_e level e
+
+identifyMFEs_alt1
+  :: Level
+  -> AnnAlt (Name, Level) Level
+  -> Alter (Name, Level)
+identifyMFEs_alt1  level (tag,       []  , rhs) =
+  {- no args no lambda, so applying not incremented level -}
+  (tag, []  , identifyMFEs_e level rhs)
+identifyMFEs_alt1 _level (tag, args@(a:_), rhs) =
+  {- like lambda abstraction -}
+  (tag, args, identifyMFEs_e arg_level rhs)
+  where (_name, arg_level) = a
 
 -----
 
