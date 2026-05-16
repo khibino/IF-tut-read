@@ -299,7 +299,23 @@ float_e (ELet is_rec defns body) =
       (rhsFloatDefns1 ++ floatedDefns, (name, rhs'))
       where (rhsFloatDefns1, rhs') = float_e rhs
 
-float_e _ = _not_yet
+float_e (ECase e alts)           = float_case e alts
+
+float_case :: Expr (Name, Level) -> [Alter (Name, Level)] -> (FloatedDefns, Expr Name)
+float_case e alts  = (concat (fd : fd_alts), ECase e' alts')
+  where
+    (fd, e') = float_e e
+    (fd_alts, alts') = unzip [float_alt alt | alt <- alts]
+
+float_alt :: Alter (Name, Level) -> (FloatedDefns, Alter Name)
+float_alt (tag,       []  , body) = (fd_body , (tag, [], body'))
+  where (fd_body, body') = float_e body
+float_alt (tag, args@(_:_), body) = (fd_outer, (tag, args', body'))
+  where
+    args' = [arg | (arg, _level) <- args]
+    (_first_arg, this_level) = head args
+    (fd_body, body') = float_e body
+    (fd_outer, fd_this_level) = partitionFloats this_level fd_body
 
 partitionFloats :: Level -> FloatedDefns -> (FloatedDefns, FloatedDefns)
 partitionFloats this_level fds =
