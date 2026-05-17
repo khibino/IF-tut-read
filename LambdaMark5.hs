@@ -280,7 +280,7 @@ float_e (EAp e1 e2)    = (fd1 ++ fd2, EAp e1' e2')
     (fd2, e2') = float_e e2
 
 float_e (ELam args body) =
-  (fd_outer, ELam args' (install fd_this_level body'))
+  (fd_outer, mkELam args' (install fd_this_level body'))
   where
     args' = [arg | (arg, _level) <- args]
     (_first_arg, this_level) = head args
@@ -329,6 +329,11 @@ install defnGroups e =
   foldr installGroup e defnGroups
   where
     installGroup (_level, is_rec, defns) e1 = ELet is_rec defns e1
+
+-- exercise 6.12 - mkELam util
+mkELam :: [a] -> Expr a -> Expr a
+mkELam args (ELam args' body)  = ELam (args ++ args') body
+mkELam args  other_body        = ELam  args           other_body
 
 -----
 
