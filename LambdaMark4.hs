@@ -551,6 +551,17 @@ main = f 6
 runS :: String -> String
 runS = pprint . lambdaLift . parse
 
+{- |
+>>> putStrLn $ runF "f x = let g = \\y . x*x + y in (g 3 + g 4) ; main = f 6"
+f x_0_1 = let
+            v_3_6 = x_0_1 * x_0_1
+          in let
+               g_1_2 = let
+                         sc_3 = \ v_3_4 y_2_5 . v_3_4 + y_2_5
+                       in sc_3 v_3_6
+             in g_1_2 3 + g_1_2 4 ;
+main = f 6
+ -}
 runF :: String -> String
 runF = pprint . lambdaLift . fullyLazyLift . parse
 
